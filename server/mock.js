@@ -20,7 +20,7 @@ function makeRuntime(src, opts) {
   const props = {};
   const ctx = {
     console, Logger: { log: m => logs.push(String(m)) },
-    Session: { getScriptTimeZone: () => 'Asia/Jakarta' },
+    Session: { getActiveUser: () => ({ getEmail: () => opts.activeEmail || 'admin@umt.test' }), getScriptTimeZone: () => 'Asia/Jakarta' },
     Utilities: {
       DigestAlgorithm: { SHA_256: 'SHA256' },
       getUuid: () => crypto.randomUUID(),

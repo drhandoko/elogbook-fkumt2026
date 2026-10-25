@@ -12,7 +12,9 @@ sheet_ = function(name) {
   if (!sh) { sh = ss.insertSheet(name); sh.getRange(1,1,1,5).setValues([HEAD]); sh.setFrozenRows(1); }
   return sh;
 };
+function requireOwner_() {const email=Session.getActiveUser().getEmail();if(!email||email.toLowerCase()!==ADMIN_EMAIL.toLowerCase())fail_('forbidden','Inisialisasi dan cadangan hanya dapat dijalankan pemilik admin.');}
 function setupLive() {
+  requireOwner_();
   const P = PropertiesService.getScriptProperties();
   if (!P.getProperty('SPREADSHEET_ID')) {
     const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.create('E-Portofolio FK UMT - Data Live');
@@ -22,6 +24,7 @@ function setupLive() {
   Logger.log('Basis data live: ' + database_().getUrl());
 }
 function backupDatabase() {
+  requireOwner_();
   const copy = database_().copy('Cadangan E-Portofolio FK UMT ' + ts_());
   Logger.log('Cadangan dibuat: ' + copy.getUrl());
   return copy.getId();

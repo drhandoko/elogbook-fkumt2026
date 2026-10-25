@@ -30,6 +30,7 @@ const SHEETS = ['users', 'students', 'cases', 'asms', 'epaLog', 'nilai', 'ews', 
 
 /* ======== PEMASANGAN ======== */
 function setup() {
+  requireOwner_();
   IDX = {}; TOUCH = {}; DELR = {}; MEM = {};
   if (!/^\S+@\S+\.\S+$/.test(ADMIN_EMAIL) || ADMIN_EMAIL.indexOf('contoh.com') >= 0) throw new Error('Ubah ADMIN_EMAIL di bagian atas skrip dengan email admin yang sebenarnya, lalu jalankan setup lagi.');
   SHEETS.forEach(function (n) { sheet_(n); });
@@ -62,7 +63,7 @@ function setup() {
 function doGet(e) {
   const tok = e && e.parameter && e.parameter.consent;
   if (tok) return consentPage_(String(tok));
-  return json_({ ok: true, name: 'E-Logbook Profesi Dokter FK UMT', version: 2 });
+  return json_({ ok: true, name: 'E-Logbook Profesi Dokter FK UMT', version: '3.0.0', ready: !!PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID') });
 }
 function doPost(e) {
   let req;

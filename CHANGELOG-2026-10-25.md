@@ -29,7 +29,7 @@ Warna, tema terang/gelap, logo, sidebar, navigasi utama, kartu, dan grafik asli.
 20. Panduan versi live dan bantuan pada halaman masuk; fungsi cadangan database dan petunjuk pemulihan.
 
 ## Pengujian
-- 43 pemeriksaan regresi backend lulus, termasuk akses, consent, MSF, rubrik, konflik, audit, transaksi batch, dan kriptografi.
+- 45 pemeriksaan regresi backend lulus, termasuk akses, consent, MSF, rubrik, konflik, audit, transaksi batch, dan kriptografi.
 - 40 pemeriksaan HTML hasil render lulus untuk menu mahasiswa, dosen, preseptor, kaprodi, admin, serta dashboard kosong.
 - Vektor PBKDF2 produksi 600.000 iterasi cocok dengan implementasi Node crypto; sekitar 6,3 detik pada lingkungan pengujian.
 - Tes regresi cepat memakai 1.000 iterasi; kode produksi tetap 600.000.
@@ -41,3 +41,13 @@ Kode backend dan konfigurasi live disiapkan. Aktivasi memerlukan persetujuan izi
 
 ## Keputusan institusi yang masih diperlukan
 Pengesahan rubrik asesmen dan kriteria entrustment; kebijakan retensi data serta kontak layanan privasi; jadwal cadangan dan uji pemulihan. Aplikasi menyediakan alur teknis tetapi tidak menetapkan kebijakan klinis/akademik tersebut secara sepihak.
+
+
+## Pembaruan pemasangan
+- Proyek Google Apps Script dibuat: E-Portofolio FK UMT - Live.
+- Script ID: 1nawSRNQkS47GhhStvMnVQg_7wVgjrvjcaPq8rov7joeNcmIyXL3UKTKv.
+- Kode awal v3 telah dipasang, ADMIN_EMAIL dikonfigurasi melalui Script Properties, dan zona waktu Jakarta terverifikasi.
+- Inisialisasi berhenti pada permintaan Authorization required / Review permissions dari Google. Pemilik akun perlu menyelesaikan otorisasi; belum ada konfirmasi database live berhasil dibuat.
+- Revisi pengamanan terakhir pada GitHub juga membatasi setup dan backup hanya kepada akun admin aktif; paket ini perlu disinkronkan kembali ke editor sebelum deployment publik.
+- Pull request: https://github.com/drhandoko/elogbook-fkumt2026/pull/2 (draft; belum digabung ke main).
+- URL Render yang lama belum dinyatakan sebagai versi live; deployment dan pengujian lintas perangkat menunggu otorisasi tersebut.

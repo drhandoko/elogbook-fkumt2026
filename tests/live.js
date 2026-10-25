@@ -70,4 +70,8 @@ const audits=rt.call('load',{token:a.token}).audit;ok(audits.some(x=>x.action===
 const before=rt.call('load',{token:a.token}).periods.length;
 const atomic=rt.call('sync',{token:a.token,ops:[{c:'periods',id:'periodAtomic',d:{nama:'Test',mulai:'2026-01-01',selesai:'2026-12-31',aktif:true}},{c:'cases',id:'forbidden',d:doc}]});
 ok(!atomic.ok&&rt.call('load',{token:a.token}).periods.length===before,'batch rejects all writes when one operation fails');
+rt.run("ADMIN_EMAIL");
+rt.ctx.Session.getActiveUser=()=>({getEmail:()=>''});
+let blocked=false;try{rt.run('setupLive()')}catch(e){blocked=e.code==='forbidden'}ok(blocked,'public callers cannot initialize database');
+blocked=false;try{rt.run('backupDatabase()')}catch(e){blocked=e.code==='forbidden'}ok(blocked,'public callers cannot create backups');
 console.log('\n'+count+' regression checks passed. Fast tests use 1000 PBKDF2 rounds; production uses 600000.');
