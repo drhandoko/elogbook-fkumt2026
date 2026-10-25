@@ -28,7 +28,7 @@ A.tabgo = el => { UI.tab[el.dataset.k] = el.dataset.v; go(el.dataset.p); };
 A.mclose = () => closeModal();
 A.mbg = (el, ev) => { if (ev.target === el) closeModal(); };
 A.copy = el => copyText(el.dataset.t, 'Tersalin');
-A.demo = el => { const u = S.users.find(x => x.email === el.dataset.e); if (u) doLogin(u); };
+A.demo = el => { if (SERVER) return; const u = S.users.find(x => x.email === el.dataset.e); if (u) doLogin(u); };
 A.reload = () => reload();
 A.reset = () => { if (SERVER) return; try { localStorage.removeItem(LS_KEY); } catch (e) { } seedState(); S.bgData = {}; S.session = null; save(); UI.route = 'login'; UI.params = {}; UI.fl = {}; UI.tab = {}; UI.imp = null; closeModal(); render(); toast('Data demo diatur ulang'); };
 A.pw = () => pwForm(false);
@@ -85,7 +85,7 @@ A.logstat = el => { const f = logFilters(); f.stat = el.dataset.v; f.page = 1; r
 A.logpage = el => { const f = logFilters(); f.page += parseInt(el.dataset.v, 10); render(); };
 A['log-csv'] = () => {
   const rows = [['Tanggal', 'Jenis', 'Stase', 'Tempat', 'Diagnosis atau kegiatan', 'Kategori', 'Sistem organ', 'Keterlibatan', 'Status', 'Preseptor']].concat(logRows(curSid()).map(c => [c.tgl, c.jenis, stase(c.st).nama, wahanaOf(c.wah).nama, c.dx, c.kat, c.sis, c.ter, STAT[c.stat][0], pname(c.pid)]));
-  copyText(toCSV(rows), 'Rekap CSV disalin');
+  downloadText('Logbook-'+iso(T0)+'.csv',toCSV(rows),'text/csv;charset=utf-8');
 };
 A['reply-save'] = el => { const t = document.getElementById(el.dataset.t); S.replies[el.dataset.k] = t ? t.value : ''; save(); toast('Rencana tindak lanjut tersimpan'); };
 A['port-copy'] = () => { const sid = curSid(), s = stats(sid), st = studentById(sid); copyText('Ringkasan portofolio ' + st.nama + ' (' + st.nim + ')\nKasus: ' + s.total + ' (' + s.valid + ' divalidasi)\nMini-CEX rata-rata: ' + n1(s.mini) + ' dari 9\nEPA rata-rata: ' + n1(s.epaAvg) + ' dari 5\nNilai PSPD: ' + n1(s.pspd) + '\nNilai PSSK: ' + n1(s.pssk), 'Ringkasan disalin'); };
@@ -95,7 +95,7 @@ FORMS.case = (f, sub) => {
   const isNew = !id; const c = isNew ? { id: genId('c'), sid: curSid(), stat: 'draf', fb: '', fbTgl: '', cons: false, tok: rndTok(), ini: '', rm: '' } : S.cases.find(x => x.id === id);
   if (!c) return closeModal();
   const ini = F(f, 'cf-ini').trim(), rm = F(f, 'cf-rm').trim();
-  if (jenis === 'Kasus' && isNew && (!ini || !rm)) { toast('Isi inisial pasien dan nomor rekam medis', 'bad'); return; }
+  // Data pasien tambahan bersifat opsional; gunakan kode kasus.
   Object.assign(c, { tgl: F(f, 'cf-tgl'), jenis, st: F(f, 'cf-st'), wah: F(f, 'cf-wah'), dx: F(f, 'cf-dx').trim(), pid: F(f, 'cf-pid'), sum: F(f, 'cf-sum'), ref: F(f, 'cf-ref') });
   if (jenis === 'Kasus') { Object.assign(c, { kat: F(f, 'cf-kat'), sis: F(f, 'cf-sis'), usia: F(f, 'cf-usia'), jk: F(f, 'cf-jk'), ter: F(f, 'cf-ter') }); if (ini) c.ini = ini; if (rm) c.rm = rm; } else { c.kat = ''; c.sis = ''; }
   c.stat = s === 'ajukan' ? (jenis === 'Kasus' ? 'menunggu' : 'valid') : 'draf';
@@ -146,7 +146,7 @@ A['bg-end'] = async el => {
 A.grade = el => gradeForm(el.dataset.id);
 FORMS.grade = f => {
   const a = S.asms.find(x => x.id === f.dataset.id); if (!a) return closeModal();
-  const n = a.jenis === 'DOPS' ? DP_DOM.length : MC_DOM.length; a.sk = []; for (let i = 0; i < n; i++) a.sk.push(clamp(parseInt(F(f, 'g' + i), 10) || 6, 1, 9));
+  const n = assessmentDomains(a.jenis).length; if (Array.from({length:n},(_,i)=>F(f,'g'+i)).some(x=>!x)) return toast('Nilai setiap domain secara eksplisit','bad'); a.sk = []; for (let i = 0; i < n; i++) a.sk.push(clamp(parseInt(F(f, 'g' + i), 10) || 6, 1, 9));
   a.kek = F(f, 'g-kek').trim(); a.perlu = F(f, 'g-perlu').trim(); a.renc = F(f, 'g-renc').trim(); a.stat = 'dinilai';
   done('Penilaian tersimpan, rata-rata ' + n1(mean(a.sk)));
 };
@@ -169,7 +169,7 @@ FORMS.validate = (f, sub) => {
   const c = S.cases.find(x => x.id === f.dataset.id); const how = sub && sub.dataset.submit; const cm = F(f, 'vl-cm').trim();
   if (!c) return closeModal();
   if (how === 'kembali' && !cm) { toast('Tuliskan umpan balik agar mahasiswa tahu apa yang perlu diperbaiki', 'bad'); return; }
-  c.stat = how === 'kembali' ? 'kembali' : 'valid'; c.fb = cm; c.fbTgl = iso(T0);
+  c.stat = how === 'kembali' ? 'kembali' : 'valid'; c.fb = cm; c.fbTgl = iso(T0); c.respondedAt = new Date().toISOString();
   done(how === 'kembali' ? 'Entri dikembalikan ke mahasiswa' : 'Kasus divalidasi');
 };
 A['val-bulk'] = () => {
@@ -345,4 +345,4 @@ async function boot() {
   S = emptyState(); UI.route = 'login';
   if (TOKEN) { UI.booting = true; render(); await startSession(); UI.booting = false; render(); } else render();
 }
-boot();
+// boot() dipanggil setelah enhancements.js.
