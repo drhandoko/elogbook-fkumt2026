@@ -17,7 +17,7 @@ Backend perlu dapat dipanggil oleh aplikasi web. Pengaturan akses deployment App
 
 Jangan menyimpan kata sandi, token OAuth, kunci layanan, isi basis data, atau identitas pasien dalam repositori maupun public/. Sumber backend dan berkas pengujian tidak diterbitkan karena direktori hosting dibatasi ke public/.
 
-Status saat dokumen disiapkan: konfigurasi migrasi selesai; proyek Firebase belum dibuat dan situs Firebase belum diterbitkan.
+Status 25 Oktober 2026: proyek e-portofolio-fk-umt-2026 telah dibuat pada paket Spark. Situs https://e-portofolio-fk-umt-2026.web.app/ telah diterbitkan. Uji tulis pendaftaran sintetis ke Google Sheets berhasil dan data uji telah dibersihkan. Akun admin masih memerlukan pergantian kata sandi pertama oleh pemilik.
 
 Dokumentasi resmi:
 https://firebase.google.com/docs/hosting/quickstart

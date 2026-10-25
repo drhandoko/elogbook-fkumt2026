@@ -1,24 +1,26 @@
-# E-Portofolio FK UMT
+# E-Portofolio FK UMT - Firebase Hosting Spark
 
-Perbaikan versi 3 mempertahankan tema aplikasi dan memisahkan situs live dari data contoh.
+Situs aplikasi: https://e-portofolio-fk-umt-2026.web.app/
+Proyek Firebase: e-portofolio-fk-umt-2026
+Paket yang diverifikasi di konsol: Spark (tanpa penagihan).
 
-## Menjalankan dan memeriksa
+Desain, warna, dan komponen antarmuka utama dipertahankan. Halaman utama memakai backend live Google Apps Script + Google Sheets. Demo terpisah tersedia pada /demo.html#demo.
 
-- Node.js: `node build.js` menghasilkan situs siap hosting di `public/` dan backend `server/Code.gs`.
-- Backend: `node tests/live.js` dan `node tests/review-live.js`.
-- Tampilan: `node tests/render.js`.
-- `tests/live.js` mempercepat PBKDF2 hanya di simulator; kode produksi memakai 600.000 iterasi.
+## Build dan deployment
 
-## Aktivasi live
+1. Jalankan pengujian: node tests/live.js; node tests/review-live.js; node tests/render.js (jalankan sebagai perintah terpisah).
+2. Tetapkan variabel ELOGBOOK_API_URL ke URL deployment Apps Script /exec yang digunakan institusi.
+3. Jalankan node build.js.
+4. Setelah Firebase CLI terautentikasi, jalankan node scripts/deploy-firebase.js e-portofolio-fk-umt-2026.
 
-1. Buat proyek Google Apps Script milik institusi. Salin `server/Code.gs`, ganti ADMIN_EMAIL, dan pasang manifes `server/appsscript.json`.
-2. Jalankan `setupLive`, setujui izin Google setelah meninjau cakupannya, dan simpan sandi admin sementara dari log eksekusi secara pribadi.
-3. Deploy sebagai aplikasi web. Jalankan sebagai pemilik; akses endpoint tersedia untuk pengguna aplikasi. Data pendidikan tetap memerlukan autentikasi aplikasi dan otorisasi per baris. Halaman persetujuan pasien tidak menampilkan data kasus.
-4. Pada layanan Render yang sudah ada, tetapkan Build Command `node build.js`, Publish Directory `public`, dan variabel lingkungan `ELOGBOOK_API_URL` ke URL deployment Apps Script yang berakhiran `/exec`.
-5. Uji mahasiswa mengajukan kasus, pasien memberikan keputusan, penilai memvalidasi, dan hasil terbaca setelah masuk dari sesi/perangkat lain. Atur penugasan pembimbing sebelum mahasiswa mengajukan kasus.
+Skrip hanya menerbitkan public/. firebase.json tidak mengonfigurasi Functions, App Hosting, Cloud Run, atau layanan yang memerlukan Blaze. Pertahankan proyek pada Spark dan jangan tautkan akun penagihan.
 
-`/demo.html#demo` memakai data contoh di peramban. Halaman utama memakai backend live dan tidak beralih diam-diam ke demo apabila backend belum dikonfigurasi. Backend dan deployment live belum dinyatakan aktif hanya karena pengujian simulator berhasil.
+## Hasil verifikasi 25 Oktober 2026
 
-Panduan operasional: `docs/panduan-live.html`. Jalankan `backupDatabase` untuk membuat salinan basis data; uji pemulihan pada salinan terpisah sebelum penggunaan operasional.
+- Firebase Hosting berhasil menerbitkan lima berkas tampilan.
+- 43 pemeriksaan regresi backend dan 40 pemeriksaan render lulus di Cloud Shell sebelum deployment.
+- 15 pemeriksaan backend terpisah juga lulus pada lingkungan lokal.
+- Uji pendaftaran sintetis melalui situs Firebase tersimpan di Google Sheets. Baris uji dibersihkan sesudah verifikasi.
+- Akun admin awal tersedia, tetapi masih mewajibkan pemilik mengganti kata sandi sementara. Uji alur penilaian lengkap dengan akun operasional belum selesai.
 
-Rubrik awal dan ketentuan pendidikan tetap perlu pengesahan program studi sebelum penilaian sumatif. Kode tidak memuat akun mahasiswa atau pasien nyata.
+Jangan menyimpan kata sandi admin, kode otorisasi, kunci layanan, atau data pasien di repositori. Panduan migrasi: docs/Firebase_Hosting_Spark.md. Backend terbangun: server/Code.gs.
