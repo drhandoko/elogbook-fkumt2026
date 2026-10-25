@@ -59,6 +59,11 @@ const KETERLIBATAN = ['Mengamati', 'Membantu', 'Melakukan dengan supervisi', 'Me
 const PROSEDUR = ['Pemasangan infus', 'Pemasangan kateter urin', 'Pemasangan pipa nasogastrik', 'Injeksi intramuskular dan intravena', 'Penjahitan luka laserasi', 'Resusitasi jantung paru', 'Pengambilan darah vena', 'Pemeriksaan EKG 12 sadapan', 'Nebulisasi'];
 const MC_DOM = ['Anamnesis', 'Pemeriksaan fisik', 'Profesionalisme', 'Penalaran klinis', 'Komunikasi dan konseling', 'Organisasi dan efisiensi', 'Kompetensi klinis keseluruhan'];
 const DP_DOM = ['Persiapan dan indikasi', 'Informed consent dan komunikasi', 'Teknik prosedur', 'Asepsis dan keselamatan', 'Penanganan komplikasi', 'Profesionalisme', 'Kompetensi keseluruhan'];
+const CBD_DOM = ['Representasi masalah', 'Interpretasi data klinis', 'Diagnosis banding', 'Dasar ilmiah keputusan', 'Rencana tata laksana', 'Keselamatan dan refleksi'];
+const PRESENT_DOM = ['Struktur presentasi', 'Ketepatan data', 'Penalaran klinis', 'Penggunaan bukti', 'Komunikasi', 'Respons diskusi'];
+const MSF_DOM = ['Komunikasi', 'Kerja sama tim', 'Keandalan', 'Profesionalisme', 'Keselamatan pasien'];
+function assessmentDomains(j) { return j === 'DOPS' ? DP_DOM : j === 'CBD' ? CBD_DOM : j === 'Presentasi Kasus' ? PRESENT_DOM : j === 'MSF' ? MSF_DOM : MC_DOM; }
+const ONKO_TAGS = ['Promosi kesehatan', 'Pencegahan kanker', 'Deteksi dini kanker', 'Konseling faktor risiko', 'Tanda bahaya dan rujukan'];
 const EPAS = [
   ['Anamnesis', 'Menggali riwayat pasien secara terarah dan lengkap'],
   ['Pemeriksaan fisik', 'Melakukan pemeriksaan fisik sistematis sesuai keluhan'],
@@ -165,7 +170,7 @@ function stScore(sid, stId) {
     const item = sched(st).find(x => x.id === stId); const started = !!item && item.start <= T0;
     const avgA = j => { const l = asmsOf(sid).filter(a => a.jenis === j && a.st === stId && a.stat === 'dinilai'); return l.length ? mean(l.map(a => mean(a.sk))) / 9 * 100 : null; };
     const logb = () => { if (!started) return null; const t = s.tf + s.tr; if (!t) return null; return Math.min(100, casesOf(sid).filter(c => c.st === stId && c.jenis === 'Kasus' && c.stat === 'valid').length / t * 100); };
-    const vals = { CBT: nilaiRec(sid, 'PSPD', stId, 'CBT'), OSCE: nilaiRec(sid, 'PSPD', stId, 'OSCE'), 'Mini-CEX': avgA('Mini-CEX'), DOPS: avgA('DOPS'), CBD: nilaiRec(sid, 'PSPD', stId, 'CBD'), Logbook: logb(), MSF: nilaiRec(sid, 'PSPD', stId, 'MSF') };
+    const vals = { CBT: nilaiRec(sid, 'PSPD', stId, 'CBT'), OSCE: nilaiRec(sid, 'PSPD', stId, 'OSCE'), 'Mini-CEX': avgA('Mini-CEX'), DOPS: avgA('DOPS'), CBD: nilaiRec(sid, 'PSPD', stId, 'CBD') ?? avgA('CBD'), Logbook: logb(), MSF: nilaiRec(sid, 'PSPD', stId, 'MSF') ?? avgA('MSF') };
     let sw = 0, sv = 0; const rows = [];
     Object.keys(B).forEach(k => { const v = vals[k] == null ? null : vals[k]; rows.push({ k, v, w: B[k] }); if (v != null) { sw += B[k]; sv += v * B[k]; } });
     return { rows, total: sw ? sv / sw : null, started };
