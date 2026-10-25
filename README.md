@@ -1,15 +1,16 @@
-# E-Logbook Profesi Dokter UMT
+# E-Logbook Profesi Dokter
+Program Studi Profesi Dokter, Fakultas Kedokteran Universitas Murni Teguh. Rumah sakit pendidikan utama: RS Murni Teguh Methodist Susanna Wesley.
 
-E-logbook dan e-portofolio Program Studi Profesi Dokter, Universitas Murni Teguh. Rumah sakit pendidikan utama: RS Murni Teguh Methodist Susanna Wesley.
+Petunjuk lengkap untuk pengguna dan tim TI: `docs/Petunjuk_Penggunaan_E-Logbook_FK_UMT.pdf`.
 
-Aplikasi berupa satu halaman statis (HTML, CSS, JavaScript tanpa framework). Data prototipe disimpan di browser pengguna (localStorage) dan tidak dikirim ke server.
+## Struktur
+- `index.html`, `config.js`, `logo-fk.svg`: aplikasi web statis (Render Static Site).
+- `src/`: kode sumber. `node build.js` menghasilkan `index.html`, `server/Code.gs`, dan berkas turunan lain.
+- `server/Code.gs`: backend Google Apps Script (data di Google Sheets). `server/appsscript.json`: manifes.
+- `tests/`, `server/test.js`: pengujian (Node + jsdom). `npm i jsdom` lalu `node tests/demo.js`, `node tests/server.js`, `node server/test.js`.
 
-## Peran
+## Mode
+- `API_URL` kosong di `config.js`: mode demonstrasi (data di peramban, akun contoh via `#demo`).
+- `API_URL` berisi URL aplikasi web Apps Script (`.../exec`): mode server (data sebenarnya).
 
-Mahasiswa, Dosen, Preseptor, Kaprodi, Admin Prodi, dan akun multirole. Akun demo tersedia di halaman masuk, kata sandi `password123`.
-
-## Menjalankan dan men-deploy
-
-Buka `index.html` di browser, atau deploy ke Render sebagai Static Site (repo ini memuat `render.yaml`).
-
-Mengubah kode: edit berkas di `src/`, lalu jalankan `./build.sh` untuk menghasilkan ulang `index.html`.
+Jangan mengubah `index.html` langsung. Ubah `src/` lalu jalankan `node build.js`.

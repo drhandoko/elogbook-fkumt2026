@@ -51,7 +51,8 @@ const asmTone = s => s === 'dinilai' ? 'good' : 'warn';
 
 /* privasi pasien */
 function bgActive(cid) { const e = S.bg[cid]; return !!e && e.until > Date.now(); }
-function ptLabel(c) { return bgActive(c.id) ? esc(c.ini) + ' &middot; RM ' + esc(c.rm) : 'Pasien ' + '••••' + esc(String(c.rm).slice(-2)); }
+function ptIdent(c) { return SERVER ? (S.bgData[c.id] || { ini: '', rm: '' }) : { ini: c.ini, rm: c.rm }; }
+function ptLabel(c) { const l2 = c.rm2 || String(c.rm || '').slice(-2); if (bgActive(c.id)) { const p = ptIdent(c); return esc(p.ini) + ' &middot; RM ' + esc(p.rm); } return 'Pasien ••••' + esc(l2); }
 
 /* ---------- Grafik ---------- */
 function radar(vals, labels, max) {
@@ -105,12 +106,13 @@ function gauge(p, label) {
 
 /* ---------- Modal dan toast ---------- */
 function openModal(title, body, o) {
-  o = o || {}; const m = document.getElementById('modal');
-  m.innerHTML = '<div class="mback" data-a="mbg"><div class="modal ' + (o.wide ? 'wide' : '') + '" role="dialog" aria-modal="true" aria-labelledby="mtitle"><div class="mhead"><h3 id="mtitle">' + title + '</h3><button type="button" class="icon-btn" data-a="mclose" aria-label="Tutup">' + ic('x') + '</button></div><div class="mbody">' + body + '</div></div></div>';
+  o = o || {}; const m = document.getElementById('modal'); modalLock = !!o.lock;
+  m.innerHTML = '<div class="mback" data-a="mbg"><div class="modal ' + (o.wide ? 'wide' : '') + '" role="dialog" aria-modal="true" aria-labelledby="mtitle"><div class="mhead"><h3 id="mtitle">' + title + '</h3>' + (o.lock ? '' : '<button type="button" class="icon-btn" data-a="mclose" aria-label="Tutup">' + ic('x') + '</button>') + '</div><div class="mbody">' + body + '</div></div></div>';
   m.hidden = false; document.body.classList.add('noscroll');
   const f = m.querySelector('input:not([type=hidden]),select,textarea,button.btn'); if (f) setTimeout(() => f.focus(), 30);
 }
-function closeModal() { const m = document.getElementById('modal'); m.hidden = true; m.innerHTML = ''; document.body.classList.remove('noscroll'); }
+let modalLock = false;
+function closeModal(force) { if (modalLock && !force) return; modalLock = false; const m = document.getElementById('modal'); m.hidden = true; m.innerHTML = ''; document.body.classList.remove('noscroll'); }
 let toastT = null;
 function toast(msg, tone) { const t = document.getElementById('toast'); t.className = 'toast ' + (tone || ''); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3600); }
 function copyText(txt, okMsg) {

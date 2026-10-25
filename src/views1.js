@@ -1,7 +1,7 @@
 /* ================= APP STATE, PUBLIK, SHELL, MAHASISWA ================= */
 const A = {};
 const PAGES = {};
-const UI = { route: 'landing', params: {}, navOpen: false, tab: {}, fl: {}, msg: '' };
+const UI = { route: 'login', params: {}, navOpen: false, tab: {}, fl: {}, msg: '' };
 const ROLE_LABEL = { mahasiswa: 'Mahasiswa', dosen: 'Dosen', preseptor: 'Preseptor', kaprodi: 'Kaprodi', admin: 'Admin Prodi' };
 const NAV = {
   mahasiswa: [['m-home', 'Beranda', 'home'], ['m-log', 'Logbook', 'book'], ['m-sched', 'Jadwal Rotasi', 'cal'], ['m-asm', 'Asesmen', 'check'], ['m-fb', 'Umpan Balik', 'chat'], ['m-port', 'Portofolio', 'chart']],
@@ -13,7 +13,9 @@ const NAV = {
 const TITLES = {}; Object.keys(NAV).forEach(r => NAV[r].forEach(n => TITLES[n[0]] = n[1])); TITLES['v-student'] = 'Portofolio Mahasiswa';
 
 const me = () => S.session ? userById(S.session.uid) : null;
-const curSid = () => { const u = me(); return UI.params.sid || (u && u.sid) || 's1'; };
+const firstSid = () => (S.students[0] || {}).id || '';
+const curSid = () => { const u = me(); return UI.params.sid || (u && u.sid) || firstSid(); };
+const defPid = () => { const l = presList(); return l.some(p => p.id === 'u-pre') ? 'u-pre' : (l[0] ? l[0].id : ''); };
 const isRole = r => S.session && S.session.role === r;
 function go(page, params) { UI.route = page; UI.params = params || {}; UI.navOpen = false; UI.msg = ''; window.scrollTo(0, 0); render(); }
 function applyTheme() { let t = null; try { t = localStorage.getItem('elogbook-theme'); } catch (e) { } if (t) document.documentElement.setAttribute('data-theme', t); }
@@ -21,78 +23,33 @@ function render() {
   const act = document.activeElement; const fid = act && act.id; let ss = null, se = null;
   if (fid && act.selectionStart != null) { ss = act.selectionStart; se = act.selectionEnd; }
   const root = document.getElementById('app');
-  try { root.innerHTML = S.session ? shell() : publicView(); } catch (e) { root.innerHTML = '<div class="pad"><div class="card" style="margin:24px 0"><div class="card-b"><h3>Terjadi kesalahan tampilan</h3><p class="sub">' + esc(e && e.message) + '</p><button class="btn" data-a="reset">Atur ulang data demo</button></div></div></div>'; console.error(e); }
+  try { root.innerHTML = S.session ? shell() : publicView(); } catch (e) { root.innerHTML = '<div class="pad"><div class="card" style="margin:24px 0"><div class="card-b"><h3>Terjadi kesalahan tampilan</h3><p class="sub">' + esc(e && e.message) + '</p>' + (SERVER ? '<button class="btn" data-a="reload">Muat ulang data</button>' : '<button class="btn" data-a="reset">Atur ulang data demo</button>') + '</div></div></div>'; console.error(e); }
   if (fid) { const el = document.getElementById(fid); if (el && el !== document.activeElement) { el.focus(); if (ss != null && el.setSelectionRange) { try { el.setSelectionRange(ss, se); } catch (e) { } } } }
   const nxt = Object.keys(S.bg).map(k => S.bg[k].until).filter(t => t > Date.now()).sort()[0];
   if (nxt) { clearTimeout(render._t); render._t = setTimeout(render, Math.min(nxt - Date.now() + 500, 2147483000)); }
 }
 
-/* ---------- Publik ---------- */
-function pubNav() {
-  return '<header class="pnav"><div class="pad pnav-in"><button class="brand" data-a="go" data-p="landing" aria-label="Beranda">' + MARK + '<span><b>E-Logbook</b><small>Profesi Dokter UMT</small></span></button>' +
-    '<nav class="plinks" aria-label="Navigasi utama">' + [['fitur', 'Fitur'], ['pengguna', 'Untuk Siapa'], ['keamanan', 'Keamanan'], ['aipki', 'AIPKI'], ['institusi', 'Institusi']].map(x => '<button class="lnk" data-a="scroll" data-t="' + x[0] + '">' + x[1] + '</button>').join('') + '</nav>' +
-    '<div class="pnav-r"><button class="icon-btn" data-a="theme" aria-label="Ganti tema">' + ic('moon') + '</button><button class="btn ghost" data-a="go" data-p="login">Masuk</button><button class="btn primary" data-a="go" data-p="register">Daftar</button></div></div></header>';
-}
-function heroPreview() {
-  const s = stats('s1'); const epa = S.epa.s1; const l = asmsOf('s1').filter(a => a.stat === 'menunggu')[0];
-  const rows = [[0], [1], [4]].map(x => '<div class="ep"><span>' + esc(EPAS[x[0]][0]) + '</span><b>Level ' + epa[x[0]] + '</b></div>' + bar(epa[x[0]] / 5 * 100, 'good')).join('');
-  return '<div class="preview" aria-label="Pratinjau dasbor mahasiswa"><div class="pv-top"><i></i><i></i><i></i><span>Beranda &middot; Mahasiswa</span></div><div class="pv-grid">' +
-    '<div class="pv-c"><div class="eyebrow">Kasus</div><div class="pv-n">' + s.total + '</div><div class="pv-g">+' + s.bulan + ' bulan ini</div></div>' +
-    '<div class="pv-c"><div class="eyebrow">Target kasus FKTP</div>' + bar(s.pctF) + '<div class="pv-f"><b>' + n0(s.pctF) + '%</b><span>Stase ' + esc(s.curS.nama) + '</span></div></div>' +
-    '<div class="pv-c"><div class="eyebrow">Tingkat entrustment EPA</div>' + rows + '</div>' +
-    '<div class="pv-c"><div class="eyebrow">Mini-CEX</div>' + radar(MC_DOM.map((_, i) => mean(asmsOf('s1').filter(a => a.jenis === 'Mini-CEX' && a.stat === 'dinilai').map(a => a.sk[i]))), ['', '', '', '', '', '', ''], 9) + '<div class="pv-f"><span>Rata-rata ' + n1(s.mini) + '</span></div></div>' +
-    '<div class="pv-c wide"><div class="pv-doc">' + ic('check', 16) + '<div><b>' + (l ? esc(l.judul.replace(': ', ' — ').replace(' — ', ', ')) : 'DOPS, Pemasangan infus') + '</b><span>Menunggu penilaian preseptor</span></div></div></div></div></div>';
-}
-function landingView() {
-  const pil = [
-    ['Pilar A', 'Logbook Kasus Klinis', 'Catat kasus dan kegiatan harian sejak tahun preklinik hingga profesi, lalu verifikasi oleh dosen atau preseptor.', ['Privacy Mode menyala bawaan dan Break Glass beraudit', 'Persetujuan pasien lewat QR', 'Target kasus FKTP dan FKRTL']],
-    ['Pilar B', 'Asesmen Terintegrasi', 'Satu tempat untuk asesmen akademik dan asesmen di tempat kerja, lengkap dengan umpan balik yang tercatat.', ['14 jenis asesmen: DOPS, Mini-CEX, CBD, Long Case, CBT, OSCE, dan lainnya', 'Impor hasil lewat CSV berpemetaan kolom', 'Keputusan entrustment EPA tingkat 1 sampai 5']],
-    ['Pilar C', 'Peta Kompetensi', 'Ubah catatan dan nilai menjadi gambaran perkembangan kompetensi setiap mahasiswa dari waktu ke waktu.', ['Nilai blok terbobot dari komponen yang sudah dinilai', 'Persentil kohort PSSK dan PSPD', 'Portofolio longitudinal per mahasiswa']]
-  ];
-  const flow = [['Catat', 'Mahasiswa mencatat kasus, kegiatan, dan refleksi.'], ['Verifikasi', 'Dosen dan preseptor memvalidasi serta memberi umpan balik.'], ['Nilai', 'Asesmen akademik dan klinis masuk ke satu profil.'], ['Petakan', 'Kompetensi dan tingkat entrustment terlihat utuh.']];
-  const who = [['Mahasiswa', 'Logbook, jadwal rotasi, asesmen menunggu, jurnal umpan balik, dan portofolio pribadi.', 'book'], ['Dosen dan Preseptor', 'Validasi kasus, penilaian DOPS dan Mini-CEX berbasis rubrik, dan direktori mahasiswa.', 'check'], ['Kaprodi', 'Dashboard analitik kohort, capaian kompetensi, peta EPA, dan peringatan dini program studi.', 'grid'], ['Admin Prodi', 'Periode akademik, pengguna dan impor CSV, event asesmen, serta master kurikulum.', 'gear']];
-  const priv = [['Identitas terenkripsi', 'Identitas pasien disimpan terenkripsi di basis data.'], ['Privacy Mode bawaan', 'Data identitas tersamarkan kecuali benar-benar dibutuhkan.'], ['Break Glass beraudit', 'Akses darurat berbatas waktu dan setiap aksesnya tercatat.'], ['Persetujuan pasien', 'Persetujuan dikumpulkan lewat tautan QR yang mudah dipakai.']];
-  const dp = [['Data point yang kaya', 'Setiap asesmen memuat skala, narasi kekuatan, hal yang perlu ditingkatkan, dan rencana tindak lanjut.'], ['Sampling luas', 'Banyak kasus, banyak penilai, lintas waktu. Satu pengukuran tidak cukup untuk menyimpulkan kompetensi.'], ['Triangulasi per kompetensi', 'Hasil dari sumber berbeda digabung per area kompetensi, bukan dirata-rata antar instrumen.'], ['Keputusan lewat telaah', 'Tidak ada lulus atau gagal dari satu data point. Keputusan kemajuan berbasis banyak data dan dapat ditelusuri.']];
-  return pubNav() + '<main>' +
-    '<section class="hero"><div class="hero-bg" aria-hidden="true"></div><div class="pad hero-in"><div class="hero-txt">' +
-    '<span class="chip-a"><b>AIPKI</b>Dikembangkan dengan dukungan AIPKI</span>' +
-    '<h1>Jejak belajar klinis, <em>utuh dari hari pertama.</em></h1>' +
-    '<p class="lead"><b>E-Logbook Profesi Dokter UMT</b> menyatukan logbook kasus klinis, asesmen, dan peta kompetensi dalam satu ekosistem longitudinal, untuk mahasiswa, dosen, preseptor, dan pengelola program studi kedokteran.</p>' +
-    '<p class="site">Program Studi Profesi Dokter Universitas Murni Teguh<br>Rumah sakit pendidikan utama: ' + esc(RSPU) + '</p>' +
-    '<div class="hero-cta"><button class="btn primary lg" data-a="go" data-p="login">Masuk ke E-Logbook ' + ic('arrow', 16) + '</button><button class="btn outline lg" data-a="scroll" data-t="fitur">Lihat fitur</button></div>' +
-    '<div class="spons"><span class="eyebrow">Sponsor pengembangan</span><div class="spons-r"><span class="sp">AIPKI<small>Asosiasi Institusi Pendidikan Kedokteran Indonesia</small></span><span class="sp">Diktisaintek Berdampak</span></div></div></div>' +
-    '<div class="hero-pv">' + heroPreview() + '</div></div><div class="hero-ecg" aria-hidden="true">' + ECG + '</div></section>' +
-    '<section id="fitur" class="sec"><div class="pad inner"><div class="eyebrow">Tiga pilar</div><h2>Semua yang esensial untuk pendidikan klinis</h2><p class="sub max">Fokus pada inti: mencatat, menilai, dan memetakan kompetensi, tanpa kerumitan yang tidak dibutuhkan program studi.</p>' +
-    '<div class="g3">' + pil.map(p => '<article class="card pillar"><div class="eyebrow">' + p[0] + '</div><h3>' + p[1] + '</h3><p>' + p[2] + '</p><ul class="ticks">' + p[3].map(x => '<li>' + x + '</li>').join('') + '</ul></article>').join('') + '</div></div></section>' +
-    '<section class="sec alt"><div class="pad inner"><div class="eyebrow">Longitudinal</div><h2>Satu alur, dari catatan harian sampai keputusan kompetensi</h2><p class="sub max">Setiap kasus yang dicatat, setiap umpan balik, dan setiap nilai menyambung ke profil mahasiswa yang sama, baik di tahap PSSK maupun PSPD.</p>' +
-    '<ol class="flow">' + flow.map((f, i) => '<li><span class="fn">' + (i + 1) + '</span><b>' + f[0] + '</b><span>' + f[1] + '</span></li>').join('') + '</ol></div></section>' +
-    '<section id="pengguna" class="sec"><div class="pad inner"><div class="eyebrow">Untuk siapa</div><h2>Satu akun, menu mengikuti peran</h2><p class="sub max">Seseorang bisa memegang beberapa peran sekaligus dan berganti peran kapan saja. Menu yang tampil menyesuaikan peran aktif.</p>' +
-    '<div class="g4">' + who.map(w => '<article class="card who"><div class="who-i">' + ic(w[2], 20) + '</div><h3>' + w[0] + '</h3><p>' + w[1] + '</p></article>').join('') + '</div></div></section>' +
-    '<section class="sec alt"><div class="pad inner two"><div><div class="eyebrow">Jaringan pendidikan klinis</div><h2>Dari rumah sakit pendidikan utama sampai FKTP jejaring</h2><p class="sub">Rotasi, target kasus FKTP dan FKRTL, serta variasi kasus dipetakan per wahana, sehingga Kaprodi tahu wahana mana yang perlu diperkaya paparan kasusnya.</p></div>' +
-    '<div class="card"><div class="card-b net"><div class="net-main">' + ic('pin', 20) + '<div><b>' + esc(RSPU) + '</b><span>Rumah Sakit Pendidikan Utama</span></div></div>' + S.wahana.filter(w => w.id !== 'w0').map(w => '<div class="net-sub">' + ic('pin', 16) + '<span>' + esc(w.nama) + '</span><small>FKTP</small></div>').join('') + '</div></div></div></section>' +
-    '<section class="sec"><div class="pad inner"><div class="eyebrow">Prinsip asesmen</div><h2>Setiap asesmen adalah satu data point yang bermakna</h2><p class="sub max">Dirancang dengan prinsip asesmen terprogram: banyak data point, beragam metode, dan umpan balik yang dapat ditindaklanjuti.</p><div class="g4">' + dp.map(d => '<article class="card who"><h3>' + d[0] + '</h3><p>' + d[1] + '</p></article>').join('') + '</div></div></section>' +
-    '<section id="keamanan" class="sec dark"><div class="pad inner two"><div><div class="eyebrow">Privasi pasien</div><h2>Data pasien dilindungi sejak rancangan</h2><p class="sub">Pendidikan klinis menyentuh data yang sensitif. E-Logbook memperlakukannya dengan hati-hati secara bawaan, bukan sebagai pengaturan tambahan. Hak akses berjenjang sesuai peran dan jejak audit melengkapi perlindungan ini.</p></div><div class="g2">' + priv.map(p => '<article class="priv"><div class="who-i">' + ic('shield', 18) + '</div><b>' + p[0] + '</b><span>' + p[1] + '</span></article>').join('') + '</div></div></section>' +
-    '<section id="aipki" class="sec"><div class="pad inner two"><div><div class="eyebrow">Sponsor pengembangan</div><h2>Peran AIPKI dalam E-Logbook</h2><p class="sub"><b>Asosiasi Institusi Pendidikan Kedokteran Indonesia (AIPKI)</b> adalah sponsor pengembangan aplikasi e-portfolio ini. Dukungan AIPKI memungkinkan aplikasi dibangun sebagai fondasi pencatatan pendidikan klinis yang dapat dimanfaatkan oleh institusi pendidikan kedokteran di Indonesia.</p></div><ul class="ticks big"><li>Mendukung pengembangan logbook, asesmen, dan peta kompetensi yang selaras dengan kebutuhan pendidikan kedokteran.</li><li>Menjembatani kebutuhan institusi anggota agar alat bantu pendidikan klinis lebih mudah dijangkau.</li><li>Mendorong praktik pencatatan dan penilaian yang konsisten antar program studi.</li></ul></div></section>' +
-    '<section id="institusi" class="sec alt"><div class="pad inner"><div class="eyebrow">Bagi institusi</div><h2>Bagaimana institusi mendapatkan aplikasi e-portfolio?</h2><p class="sub max">Apakah akan digunakan untuk institusi? Berikut yang diberikan dan yang perlu disiapkan.</p><div class="g3">' +
-    '<article class="card who"><div class="eyebrow">Yang diberikan</div><h3>PUKMPPD dan AIPKI</h3><p>Memberikan <b>source code</b> kepada institusi. Masa berlaku source code: expired dalam 1 bulan.</p></article>' +
-    '<article class="card who"><div class="eyebrow">Yang disiapkan institusi</div><h3>Server dan IT Support</h3><p>Institusi menyiapkan <b>server</b> dan dukungan <b>IT</b> untuk menjalankan serta memelihara aplikasi.</p></article>' +
-    '<article class="card who"><div class="eyebrow">Versi lite</div><h3>Selamat mencoba</h3><p>Coba versi lite dengan akun demo, atau daftar memakai alamat email pribadi lalu tunggu admin menetapkan peran Anda.</p><button class="btn primary" data-a="go" data-p="login">Coba akun demo</button></article></div></div></section>' +
-    '<section class="sec cta"><div class="pad inner center"><h2>Mulai catat jejak belajar hari ini</h2><p class="sub">Masuk dengan akun institusi Anda, atau daftar lalu tunggu admin program studi menetapkan peran Anda.</p><div class="hero-cta c"><button class="btn primary lg" data-a="go" data-p="login">Masuk</button><button class="btn outline lg" data-a="go" data-p="register">Daftar akun</button></div></div></section>' +
-    '</main><footer class="pfoot"><div class="pad pfoot-in"><div><b>E-Logbook Profesi Dokter UMT</b><span>Ekosistem Pendidikan Klinis Longitudinal &middot; &copy; 2026</span><span>Program Studi Profesi Dokter, Universitas Murni Teguh &middot; ' + esc(RSPU) + '</span></div><div class="spons-r"><span class="sp sm">AIPKI</span><span class="sp sm">Diktisaintek Berdampak</span></div></div><div class="pad demo-note">Prototipe demo: data disimpan di peramban Anda dan tidak dikirim ke server. Jangan memasukkan data pasien yang sebenarnya. <button class="lnk" data-a="reset">Atur ulang data demo</button></div></footer>';
+/* ---------- Publik: gerbang masuk yang sederhana ---------- */
+const LOGOS = () => '<div class="logos"><span class="logo-chip"><img src="' + LOGO_FK + '" alt="Logo Fakultas Kedokteran Universitas Murni Teguh"></span><span class="logo-chip"><img src="' + LOGO_RS + '" alt="Logo RS Murni Teguh Methodist Susanna Wesley"></span></div>';
+const showDemoList = () => !SERVER && typeof location !== 'undefined' && location.hash === DEMO_HASH;
+function gate(inner) {
+  return '<main class="gate"><section class="gate-brand"><div class="gate-top">' + LOGOS() + '</div><div class="gate-title"><h1>E-Logbook</h1><p class="gate-p">Program Studi Profesi Dokter</p><p class="gate-sub">' + esc(INSTITUSI) + '</p></div><p class="gate-foot">Rumah sakit pendidikan utama<b>' + esc(RSPU) + '</b></p></section>' +
+    '<section class="gate-form"><button class="icon-btn gate-theme" data-a="theme" aria-label="Ganti tema">' + ic('moon') + '</button><div class="gate-card">' + inner + '</div></section></main>';
 }
 function loginView() {
-  const accts = S.users.filter(u => u.demo);
-  return pubNav() + '<main class="auth pad"><div class="auth-card"><div class="auth-form card"><div class="card-b"><div class="eyebrow">Masuk</div><h1>Masuk ke E-Logbook</h1><p class="sub">Gunakan akun institusi atau akun demo di samping.</p>' + (UI.msg ? '<div class="alert ' + (UI.msgTone || 'bad') + '" role="alert">' + esc(UI.msg) + '</div>' : '') +
-    '<form data-form="login" autocomplete="off">' + field('lg-email', 'Email atau username', input('lg-email', '', { type: 'text', req: true, ph: 'nama@institusi.ac.id' })) + field('lg-pw', 'Kata sandi', input('lg-pw', '', { type: 'password', req: true })) + '<button class="btn primary lg block" type="submit">Masuk</button></form>' +
-    '<p class="hint c">Belum punya akun? <button class="lnk" data-a="go" data-p="register">Daftar</button>. Email pribadi juga bisa dipakai.</p></div></div>' +
-    '<div class="auth-demo card"><div class="card-b"><div class="eyebrow">Akun demo</div><h3>Pilih peran untuk dicoba</h3><p class="sub">Kata sandi semua akun demo: <code>' + DEMO_PW + '</code></p><div class="demo-list">' + accts.map(u => '<button type="button" class="demo-row" data-a="demo" data-e="' + esc(u.email) + '"><span class="av">' + esc(u.nama.charAt(0)) + '</span><span class="dr-t"><b>' + esc(u.email) + '</b><small>' + u.roles.map(r => ROLE_LABEL[r]).join(' + ') + '</small></span>' + ic('arrow', 16) + '</button>').join('') + '</div></div></div></div></main>';
+  const accts = showDemoList() ? S.users.filter(u => u.demo) : [];
+  return gate('<h2>Masuk</h2><p class="sub">Gunakan akun yang diberikan program studi.</p>' + (UI.msg ? '<div class="alert ' + (UI.msgTone || 'bad') + '" role="alert">' + esc(UI.msg) + '</div>' : '') +
+    '<form data-form="login" autocomplete="on">' + field('lg-email', 'Email', input('lg-email', '', { type: 'text', req: true, ph: 'nama@umt.ac.id', extra: 'autocomplete="username" autocapitalize="off" spellcheck="false"' })) + field('lg-pw', 'Kata sandi', input('lg-pw', '', { type: 'password', req: true, extra: 'autocomplete="current-password"' })) + '<button class="btn primary lg block" type="submit">Masuk</button></form>' +
+    '<p class="hint c">Belum punya akun? <button class="lnk" data-a="go" data-p="register">Daftar</button></p>' +
+    (SERVER ? '' : '<p class="hint c demo-flag">Mode demonstrasi. Data hanya tersimpan di peramban ini.</p>') +
+    (accts.length ? '<div class="demo-box"><div class="eyebrow">Akun demo &middot; sandi <code>' + DEMO_PW + '</code></div><div class="demo-list">' + accts.map(u => '<button type="button" class="demo-row" data-a="demo" data-e="' + esc(u.email) + '"><span class="av">' + esc(u.nama.charAt(0)) + '</span><span class="dr-t"><b>' + esc(u.nama) + '</b><small>' + u.roles.map(r => ROLE_LABEL[r]).join(' + ') + '</small></span>' + ic('arrow', 16) + '</button>').join('') + '</div></div>' : ''));
 }
 function registerView() {
-  return pubNav() + '<main class="auth pad"><div class="auth-card single"><div class="auth-form card"><div class="card-b"><div class="eyebrow">Daftar</div><h1>Daftar akun baru</h1><p class="sub">Setelah mendaftar, admin program studi akan menetapkan peran Anda. Anda baru dapat masuk setelah peran ditetapkan.</p>' + (UI.msg ? '<div class="alert ' + (UI.msgTone || 'good') + '" role="status">' + esc(UI.msg) + '</div>' : '') +
-    '<form data-form="register" autocomplete="off">' + field('rg-nama', 'Nama lengkap', input('rg-nama', '', { req: true })) + field('rg-email', 'Alamat email', input('rg-email', '', { type: 'email', req: true })) + field('rg-unit', 'NIM atau NIP (opsional)', input('rg-unit', '')) + field('rg-harap', 'Peran yang diharapkan', selectEl('rg-harap', ['Mahasiswa', 'Dosen', 'Preseptor'], 'Mahasiswa')) + field('rg-pw', 'Kata sandi', input('rg-pw', '', { type: 'password', req: true }), 'Ini prototipe demo. Jangan memakai kata sandi yang Anda pakai di layanan lain.') + '<button class="btn primary lg block" type="submit">Kirim pendaftaran</button></form>' +
-    '<p class="hint c">Sudah punya akun? <button class="lnk" data-a="go" data-p="login">Masuk</button></p></div></div></div></main>';
+  return gate('<h2>Daftar akun</h2><p class="sub">Setelah mendaftar, admin program studi akan menetapkan peran Anda. Anda dapat masuk setelah peran ditetapkan.</p>' + (UI.msg ? '<div class="alert ' + (UI.msgTone || 'good') + '" role="status">' + esc(UI.msg) + '</div>' : '') +
+    '<form data-form="register" autocomplete="off">' + field('rg-nama', 'Nama lengkap', input('rg-nama', '', { req: true })) + field('rg-email', 'Email', input('rg-email', '', { type: 'email', req: true })) + field('rg-unit', 'NIM atau NIP', input('rg-unit', '')) + field('rg-harap', 'Peran yang diharapkan', selectEl('rg-harap', ['Mahasiswa', 'Dosen', 'Preseptor'], 'Mahasiswa')) + field('rg-pw', 'Kata sandi', input('rg-pw', '', { type: 'password', req: true, extra: 'minlength="8" autocomplete="new-password"' }), 'Minimal 8 karakter. Jangan memakai kata sandi dari layanan lain.') + '<button class="btn primary lg block" type="submit">Kirim pendaftaran</button></form>' +
+    '<p class="hint c">Sudah punya akun? <button class="lnk" data-a="go" data-p="login">Masuk</button></p>');
 }
-function publicView() { return UI.route === 'login' ? loginView() : UI.route === 'register' ? registerView() : landingView(); }
+function publicView() { if (UI.booting) return gate('<h2>Memuat data</h2><p class="sub">Mengambil data Anda dari server. Mohon tunggu sebentar.</p>'); return UI.route === 'register' ? registerView() : loginView(); }
 
 /* ---------- Shell ---------- */
 function shell() {
@@ -100,11 +57,11 @@ function shell() {
   if (!PAGES[UI.route] || !(nav.some(n => n[0] === UI.route) || UI.route === 'v-student')) UI.route = nav[0][0];
   const multi = u.roles.length > 1;
   const act = UI.route === 'v-student' ? 'v-dir' : UI.route;
-  const sub = role === 'mahasiswa' ? esc(stats(u.sid).curS.pendek) + ' &middot; ' + esc(studentById(u.sid).nim) : esc(u.unit || '');
-  return '<div class="shell"><aside class="side ' + (UI.navOpen ? 'open' : '') + '" id="side"><div class="side-top"><button class="brand inv" data-a="nav" data-p="' + nav[0][0] + '">' + MARK + '<span><b>E-Logbook</b><small>Profesi Dokter UMT</small></span></button><div class="side-ecg" aria-hidden="true">' + ECG + '</div></div>' +
+  const sub = role === 'mahasiswa' && u.sid ? esc(stats(u.sid).curS.pendek) + ' &middot; ' + esc(studentById(u.sid).nim) : esc(u.unit || '');
+  return '<div class="shell"><aside class="side ' + (UI.navOpen ? 'open' : '') + '" id="side"><div class="side-top"><button class="brand inv" data-a="nav" data-p="' + nav[0][0] + '" aria-label="Beranda">' + LOGOS() + '<span class="brand-t"><b>E-Logbook</b><small>Profesi Dokter UMT</small></span></button></div>' +
     '<div class="role-badge"><span class="eyebrow">Peran aktif</span><b>' + ROLE_LABEL[role] + '</b></div>' +
     '<nav class="snav" aria-label="Menu ' + ROLE_LABEL[role] + '">' + nav.map(n => '<button class="sn ' + (act === n[0] ? 'on' : '') + '" data-a="nav" data-p="' + n[0] + '"' + (act === n[0] ? ' aria-current="page"' : '') + '>' + ic(n[2], 18) + '<span>' + n[1] + '</span></button>').join('') + '</nav>' +
-    '<div class="side-foot"><div class="site-note">' + ic('pin', 14) + '<span>' + esc(RSPU) + '</span></div><div class="usercard"><span class="av">' + esc(u.nama.charAt(0)) + '</span><span class="uc-t"><b>' + esc(u.nama) + '</b><small>' + sub + '</small></span></div><button class="sn" data-a="logout">' + ic('logout', 18) + '<span>Keluar</span></button></div></aside>' +
+    '<div class="side-foot"><div class="site-note">' + ic('pin', 14) + '<span>' + esc(RSPU) + '</span></div><div class="usercard"><span class="av">' + esc(u.nama.charAt(0)) + '</span><span class="uc-t"><b>' + esc(u.nama) + '</b><small>' + sub + '</small></span></div><button class="sn" data-a="pw">' + ic('lock', 18) + '<span>Ganti kata sandi</span></button><button class="sn" data-a="logout">' + ic('logout', 18) + '<span>Keluar</span></button></div></aside>' +
     '<div class="scrim ' + (UI.navOpen ? 'on' : '') + '" data-a="navclose"></div>' +
     '<div class="main"><header class="top"><div class="pad top-in"><button class="icon-btn menu-btn" data-a="navopen" aria-label="Buka menu">' + ic('menu') + '</button><div class="top-t"><span class="eyebrow">' + ROLE_LABEL[role] + '</span><b>' + esc(TITLES[UI.route] || '') + '</b></div><div class="top-r">' +
     (multi ? '<div class="seg" role="group" aria-label="Ganti peran">' + u.roles.map(r => '<button class="' + (r === role ? 'on' : '') + '" data-a="role" data-r="' + r + '">' + ROLE_LABEL[r] + '</button>').join('') + '</div>' : '') +
@@ -162,7 +119,7 @@ PAGES['m-log'] = () => {
 };
 function caseForm(id) {
   const c = id ? S.cases.find(x => x.id === id) : null; const sid = curSid(); const s = stats(sid);
-  const v = c || { tgl: iso(T0), jenis: 'Kasus', st: s.cur.id, wah: s.cur.wah, dx: '', kat: 'FKTP', sis: '', usia: '', jk: 'L', ini: '', rm: '', ter: KETERLIBATAN[2], pid: 'u-pre', sum: '', ref: '' };
+  const v = c || { tgl: iso(T0), jenis: 'Kasus', st: s.cur.id, wah: s.cur.wah, dx: '', kat: 'FKTP', sis: '', usia: '', jk: 'L', ini: '', rm: '', ter: KETERLIBATAN[2], pid: defPid(), sum: '', ref: '' };
   const dl = (DX[v.st] || []).map(d => '<option value="' + esc(d[0]) + '">').join('');
   openModal(c ? 'Ubah entri logbook' : 'Catat entri logbook',
     '<form data-form="case" data-id="' + (c ? c.id : '') + '" class="form-grid">' +
@@ -184,8 +141,8 @@ function caseDetail(id) {
   const role = S.session.role, u = me(); const owner = role === 'mahasiswa' && u.sid === c.sid;
   const canVal = (role === 'dosen' || role === 'preseptor') && c.stat === 'menunggu';
   const bg = bgActive(c.id); const left = bg ? Math.max(0, Math.ceil((S.bg[c.id].until - Date.now()) / 60000)) : 0;
-  const url = 'https://elogbook.umt.example/persetujuan/' + c.tok;
-  const consent = c.jenis !== 'Kasus' ? '' : '<div class="box"><div class="box-h"><b>Persetujuan pasien</b>' + pill(c.cons ? 'Tercatat' : 'Belum tercatat', c.cons ? 'good' : 'warn') + '</div>' + (c.cons ? '<p class="hint">Persetujuan telah dikonfirmasi pasien melalui tautan QR.</p>' : '<div class="consent">' + qrSvg(url) + '<div><p class="hint">Minta pasien memindai QR atau membuka tautan berikut untuk menyetujui penggunaan data kasus bagi pembelajaran.</p><code class="url">' + esc(url) + '</code><div class="row"><button class="btn sm" data-a="copy" data-t="' + esc(url) + '">' + ic('copy', 14) + 'Salin tautan</button>' + (owner ? '<button class="btn sm" data-a="consent-sim" data-id="' + c.id + '">Simulasikan pasien menyetujui</button>' : '') + '</div></div></div>') + '</div>';
+  const url = c.tok ? (SERVER ? API_URL + '?consent=' + c.tok : 'https://elogbook.umt.example/persetujuan/' + c.tok) : '';
+  const consent = c.jenis !== 'Kasus' ? '' : '<div class="box"><div class="box-h"><b>Persetujuan pasien</b>' + pill(c.cons ? 'Tercatat' : 'Belum tercatat', c.cons ? 'good' : 'warn') + '</div>' + (c.cons ? '<p class="hint">Persetujuan telah dikonfirmasi pasien melalui tautan QR.</p>' : (url ? '<div class="consent">' + qrSvg(url) + '<div><p class="hint">Minta pasien memindai QR atau membuka tautan berikut untuk menyetujui penggunaan data kasus bagi pembelajaran.</p><code class="url">' + esc(url) + '</code><div class="row"><button class="btn sm" data-a="copy" data-t="' + esc(url) + '">' + ic('copy', 14) + 'Salin tautan</button>' + (owner && !SERVER ? '<button class="btn sm" data-a="consent-sim" data-id="' + c.id + '">Simulasikan pasien menyetujui</button>' : '') + '</div></div></div>' : '<p class="hint">Menunggu persetujuan pasien. Tautan persetujuan hanya tersedia bagi mahasiswa pencatat.</p>')) + '</div>';
   const actions = (owner && (c.stat === 'draf' || c.stat === 'kembali') ? '<button class="btn" data-a="case-edit" data-id="' + c.id + '">Ubah</button><button class="btn primary" data-a="case-submit" data-id="' + c.id + '">Ajukan validasi</button>' : '') + (owner && c.stat === 'draf' ? '<button class="btn danger" data-a="case-del" data-id="' + c.id + '">Hapus</button>' : '');
   openModal(esc(c.dx),
     '<div class="meta"><span>' + dfmt(c.tgl) + '</span>' + statPill(c.stat) + pill(c.jenis, 'muted') + (c.kat ? pill(c.kat, 'info') : '') + '<span>' + esc(stase(c.st).nama) + '</span></div>' +
@@ -221,7 +178,7 @@ PAGES['m-asm'] = () => {
 };
 function asmForm() {
   openModal('Ajukan penilaian', '<form data-form="asm" class="form-grid">' + field('as-j', 'Jenis asesmen', selectEl('as-j', ['DOPS', 'Mini-CEX', 'CBD', 'Presentasi Kasus', 'MSF'], 'DOPS', { extra: 'data-ch="asm-j"' })) + field('as-tgl', 'Tanggal observasi', input('as-tgl', iso(T0), { type: 'date', req: true })) +
-    field('as-jd', 'Prosedur atau kasus', selectEl('as-jd', PROSEDUR, PROSEDUR[0]), '', 'span2') + field('as-st', 'Stase', selectEl('as-st', S.stases.map(x => [x.id, x.nama]), stats(curSid()).cur.id, { extra: 'data-ch="asm-j"' })) + field('as-pid', 'Penilai', selectEl('as-pid', presList().map(p => [p.id, p.nama]), 'u-pre')) +
+    field('as-jd', 'Prosedur atau kasus', selectEl('as-jd', PROSEDUR, PROSEDUR[0]), '', 'span2') + field('as-st', 'Stase', selectEl('as-st', S.stases.map(x => [x.id, x.nama]), stats(curSid()).cur.id, { extra: 'data-ch="asm-j"' })) + field('as-pid', 'Penilai', selectEl('as-pid', presList().map(p => [p.id, p.nama]), defPid())) +
     '<div class="form-act span2"><button type="button" class="btn" data-a="mclose">Batal</button><button class="btn primary" type="submit">Kirim permintaan</button></div></form>');
 }
 
