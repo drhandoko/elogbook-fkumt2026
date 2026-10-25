@@ -27,12 +27,13 @@ async function api(action, data) {
   finally { setBusy(-1); }
 }
 function sessionExpired() {
+  if(typeof SYNC_STATUS!=='undefined'&&['pending','saving','failed','conflict'].includes(SYNC_STATUS)) {setSyncStatus('failed');toast('Sesi berakhir. Masuk ulang untuk menyimpan perubahan.','warn');return;}
   setToken(''); S = emptyState(); UI.route = 'login'; UI.params = {}; UI.msg = ERR.auth; UI.msgTone = 'bad'; closeModal(true); render();
 }
 
 function emptyState() {
   return {
-    v: 2, seq: 1, users: [], students: [], cases: [], asms: [], nilai: [], epa: {}, epaLog: [], audit: [], events: [], periods: [], regs: [], ews: [], osce: [],
+    v: 2, seq: 1, users: [], students: [], cases: [], asms: [], nilai: [], epa: {}, epaLog: [], audit: [], events: [], periods: [], regs: [], ews: [], osce: [], assignments: [],
     stases: STASES.map(x => Object.assign({}, x)), wahana: WAH.slice(0, 1).map(x => Object.assign({}, x)), bobotStase: Object.assign({}, BS), bobotBlok: Object.assign({}, BB),
     replies: {}, bg: {}, bgData: {}, pct: null, session: null
   };
@@ -48,7 +49,7 @@ function loadDemo() {
 function saveDemo() { inval(); try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { } }
 
 /* ---------- Mode server: penerapan data dari server ---------- */
-const COLL = ['cases', 'asms', 'epaLog', 'nilai', 'ews', 'events', 'periods', 'wahana'];
+const COLL = ['cases', 'asms', 'epaLog', 'nilai', 'ews', 'events', 'periods', 'wahana', 'assignments'];
 const idOf = (c, d) => c === 'nilai' ? [d.sid, d.tahap, d.unit, d.komp].join('|').replace(/[^A-Za-z0-9|_-]/g, '_') : d.id;
 const SNAP = {};
 function osceFromNilai() {
@@ -60,7 +61,7 @@ function applyState(r) {
   const prev = S || emptyState(); const keepRole = prev.session && prev.session.role;
   const st = emptyState();
   st.users = r.users.map(u => Object.assign({ pw: '' }, u));
-  st.students = r.students; st.cases = r.cases; st.asms = r.asms; st.epaLog = r.epaLog; st.ews = r.ews; st.audit = r.audit; st.regs = r.regs;
+  st.assignments = r.assignments || []; st.students = r.students; st.cases = r.cases; st.asms = r.asms; st.epaLog = r.epaLog; st.ews = r.ews; st.audit = r.audit; st.regs = r.regs;
   st.nilai = r.nilai.map(n => Object.assign({}, n, { id: idOf('nilai', n) }));
   st.epa = r.epa || {}; st.events = r.events; st.periods = r.periods; st.replies = r.replies || {};
   if (r.wahana && r.wahana.length) st.wahana = r.wahana;
@@ -89,7 +90,7 @@ function takeSnap() { const d = toDocs(); Object.keys(SNAP).forEach(k => delete 
 let syncQ = Promise.resolve(), syncT = null;
 function save() {
   if (!SERVER) return saveDemo();
-  inval(); clearTimeout(syncT); syncT = setTimeout(pushNow, 150);
+  inval(); setSyncStatus('pending'); clearTimeout(syncT); syncT = setTimeout(pushNow, 150);
 }
 function pushNow() { clearTimeout(syncT); syncQ = syncQ.then(doPush).catch(e => { console.error(e); }); return syncQ; }
 async function doPush() {
@@ -100,22 +101,33 @@ async function doPush() {
     Object.keys(cur[c]).forEach(id => { const d = cur[c][id], s = snapStr(c, d); if (prev[id] !== s || (c === 'cases' && (d.ini || d.rm))) { ops.push({ c, id, d }); built.push([c, id, s]); } });
     Object.keys(prev).forEach(id => { if (!(id in cur[c])) { ops.push({ c, id, del: 1 }); built.push([c, id, null]); } });
   });
-  if (!ops.length) return;
+  if (!ops.length) { setSyncStatus('saved'); return; }
+  ops.forEach(op => { const prev=SNAP[op.c]&&SNAP[op.c][op.id]; op.rev=prev?(JSON.parse(prev)._rev||0):0; });
+  setSyncStatus('saving');
   for (let i = 0; i < ops.length; i += 120) {
     const r = await api('sync', { ops: ops.slice(i, i + 120) });
     if (!r || !r.ok) {
-      if (r && r.err === 'auth') return;
-      toast(r && r.err === 'must_change' ? 'Ganti kata sandi terlebih dahulu' : errText(r), 'bad'); await reload(true); return;
+      if (r && r.err === 'auth') { setSyncStatus('failed'); return; }
+      setSyncStatus(r && r.err === 'conflict' ? 'conflict' : 'failed'); toast(errText(r) + ' Perubahan tetap ada pada sesi ini. Gunakan Coba lagi.', 'bad'); return;
     }
-    if (r.rej && r.rej.length) { toast('Sebagian perubahan tidak dapat disimpan karena tidak sesuai hak akses atau status data. Data dimuat ulang.', 'bad'); await reload(true); return; }
-    ops.slice(i, i + 120).forEach((op, k) => { const b = built[i + k]; if (!SNAP[b[0]]) SNAP[b[0]] = {}; if (b[2] == null) delete SNAP[b[0]][b[1]]; else SNAP[b[0]][b[1]] = b[2]; });
+    if (r.rej && r.rej.length) { setSyncStatus('failed'); toast('Perubahan ditolak. Periksa penugasan dan status data.', 'bad'); return; }
+    ops.slice(i, i + 120).forEach((op, k) => {
+      const b=built[i+k], doc=r.docs&&r.docs[op.c+':'+op.id];
+      if(!SNAP[op.c])SNAP[op.c]={};
+      if(b[2]==null){delete SNAP[op.c][op.id];return;}
+      const target=Array.isArray(S[op.c])?S[op.c].find(x=>idOf(op.c,x)===op.id):null;
+      const unchanged=target&&snapStr(op.c,target)===b[2];
+      if(doc&&target){if(unchanged)Object.assign(target,doc);else target._rev=doc._rev;}
+      SNAP[op.c][op.id]=doc&&!['stases','cfg','replies'].includes(op.c)?snapStr(op.c,doc):b[2];
+    });
     ops.slice(i, i + 120).forEach(op => { if (op.c === 'cases' && op.d) { const c = S.cases.find(x => x.id === op.id); if (c && (op.d.ini || op.d.rm) && c.ini === op.d.ini && c.rm === op.d.rm) { if (c.rm) c.rm2 = String(c.rm).slice(-2); c.ini = ''; c.rm = ''; } } });
   }
-  render();
+  setSyncStatus('saved'); render();
 }
 async function reload(quiet) {
   if (!TOKEN) return false;
   if (!quiet) await pushNow();
+  if (['pending','saving','failed','conflict'].includes(SYNC_STATUS)) { if(!quiet) toast('Selesaikan perubahan yang belum tersimpan sebelum memuat ulang.','warn'); return false; }
   const r = await api('load');
   if (!r || !r.ok) { if (!r || r.err !== 'auth') toast(errText(r), 'bad'); return false; }
   const route = UI.route, params = UI.params; applyState(r);
@@ -123,7 +135,7 @@ async function reload(quiet) {
 }
 let lastRefresh = Date.now();
 function autoRefresh() {
-  if (!SERVER || !TOKEN || !S.session || busyN) return;
+  if (!SERVER || !TOKEN || !S.session || busyN || ['pending','saving','failed','conflict'].includes(SYNC_STATUS)) return;
   const m = document.getElementById('modal'); const a = document.activeElement; const typing = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
   if ((m && !m.hidden) || typing || Date.now() - lastRefresh < 120000) return;
   lastRefresh = Date.now(); reload(true);
@@ -146,6 +158,6 @@ async function startSession() {
   applyState(r); lastRefresh = Date.now(); UI.route = NAV[S.session.role][0][0]; UI.params = {}; UI.navOpen = false; window.scrollTo(0, 0); render();
   if (S.me.must) pwForm(true);
 }
-async function serverLogout() { await pushNow(); await api('logout'); setToken(''); S = emptyState(); UI.route = 'login'; UI.params = {}; UI.navOpen = false; UI.msg = ''; closeModal(true); render(); }
+async function serverLogout() { await pushNow(); if (['pending','saving','failed','conflict'].includes(SYNC_STATUS)) { toast('Ada perubahan belum tersimpan. Selesaikan sebelum keluar.','warn'); return; } await api('logout'); setToken(''); S = emptyState(); UI.route = 'login'; UI.params = {}; UI.navOpen = false; UI.msg = ''; closeModal(true); render(); }
 function tempPw() { const cs = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 10; i++) s += cs[Math.floor(Math.random() * cs.length)]; return s; }
 function rndTok(n) { n = n || 24; const cs = 'abcdefghijklmnopqrstuvwxyz0123456789'; let s = ''; try { const a = new Uint8Array(n); crypto.getRandomValues(a); for (let i = 0; i < n; i++) s += cs[a[i] % 36]; } catch (e) { for (let i = 0; i < n; i++) s += cs[Math.floor(Math.random() * 36)]; } return s; }

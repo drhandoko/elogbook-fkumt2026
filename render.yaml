@@ -2,7 +2,11 @@ services:
   - type: web
     name: elogbook-fkumt2026
     runtime: static
-    staticPublishPath: .
+    buildCommand: node build.js
+    staticPublishPath: public
+    envVars:
+      - key: ELOGBOOK_API_URL
+        sync: false
     pullRequestPreviewsEnabled: false
     headers:
       - path: /*

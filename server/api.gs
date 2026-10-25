@@ -14,7 +14,7 @@
  */
 
 /* ======== PENGATURAN YANG PERLU DIUBAH ======== */
-const ADMIN_EMAIL = 'ganti-dengan-email-admin@contoh.com';
+const ADMIN_EMAIL = PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL') || 'ganti-dengan-email-admin@contoh.com';
 const ADMIN_NAME = 'Admin Program Studi';
 
 /* ======== KONSTANTA ======== */
@@ -26,10 +26,11 @@ const MAX_FAIL = 5;           // gagal masuk berturut-turut sebelum dikunci seme
 const LOCK_TTL = 900;         // detik
 const ROLES = ['mahasiswa', 'dosen', 'preseptor', 'kaprodi', 'admin'];
 const HEAD = ['id', 'sid', 'pid', 'json', 'upd'];
-const SHEETS = ['users', 'students', 'cases', 'asms', 'epaLog', 'nilai', 'ews', 'events', 'periods', 'wahana', 'epa', 'replies', 'cfg', 'stases', 'audit', 'regs'];
+const SHEETS = ['users', 'students', 'cases', 'asms', 'epaLog', 'nilai', 'ews', 'events', 'periods', 'wahana', 'epa', 'replies', 'cfg', 'stases', 'audit', 'regs', 'assignments'];
 
 /* ======== PEMASANGAN ======== */
 function setup() {
+  IDX = {}; TOUCH = {}; DELR = {}; MEM = {};
   if (!/^\S+@\S+\.\S+$/.test(ADMIN_EMAIL) || ADMIN_EMAIL.indexOf('contoh.com') >= 0) throw new Error('Ubah ADMIN_EMAIL di bagian atas skrip dengan email admin yang sebenarnya, lalu jalankan setup lagi.');
   SHEETS.forEach(function (n) { sheet_(n); });
   const P = PropertiesService.getScriptProperties();
@@ -68,7 +69,7 @@ function doPost(e) {
   try { req = JSON.parse(e.postData.contents); } catch (x) { return json_({ ok: false, err: 'bad_request' }); }
   MEM = {}; IDX = {}; TOUCH = {}; DELR = {};
   const act = String(req.action || '');
-  const writes = { sync: 1, register: 1, chpw: 1, admin: 1, bg: 1, bgEnd: 1 };
+  const writes = { login: 1, sync: 1, register: 1, chpw: 1, admin: 1, bg: 1, bgEnd: 1 };
   let lock = null;
   try {
     if (writes[act]) { lock = LockService.getScriptLock(); lock.waitLock(25000); }
@@ -80,7 +81,7 @@ function doPost(e) {
   } catch (x) {
     if (x && x.code) return json_({ ok: false, err: x.code, msg: x.msg || '' });
     console.error(x && x.stack || x);
-    return json_({ ok: false, err: 'server', msg: String(x && x.message || x) });
+    return json_({ ok: false, err: 'server', msg: 'Gangguan server. Hubungi admin dengan waktu kejadian.' });
   } finally { if (lock) { try { lock.releaseLock(); } catch (y) { } } }
 }
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
@@ -124,7 +125,7 @@ function del_(name, id) {
 function flush_() {
   Object.keys(TOUCH).forEach(function (name) {
     const all = MEM[name], sh = sheet_(name), dels = (DELR[name] || []).slice().sort(function (a, b) { return b - a; });
-    const stamp = now_() + ' ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm:ss');
+    const stamp = now_() + ' ' + Utilities.formatDate(new Date(), 'Asia/Jakarta', 'HH:mm:ss');
     const dirty = all.filter(function (r) { return r.dirty; });
     if (dels.length > 5 || dirty.length > 30) {
       const last = sh.getLastRow();
@@ -150,8 +151,8 @@ function flush_() {
 }
 
 /* ======== UTILITAS ======== */
-function now_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
-function ts_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'); }
+function now_() { return Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd'); }
+function ts_() { return Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm'); }
 function gid_(p) { return p + new Date().getTime().toString(36) + Utilities.getUuid().replace(/-/g, '').slice(0, 6); }
 function b64_(bytes) { return Utilities.base64Encode(bytes); }
 function str_(v, max) { v = v == null ? '' : String(v); return v.length > max ? v.slice(0, max) : v; }
@@ -159,7 +160,7 @@ function int_(v, lo, hi, def) { const n = parseInt(v, 10); return isNaN(n) ? def
 function num_(v, lo, hi) { const n = parseFloat(v); if (isNaN(n) || n < lo || n > hi) return null; return Math.round(n * 10) / 10; }
 function enum_(v, list, def) { return list.indexOf(v) >= 0 ? v : def; }
 function date_(v, def) { v = String(v || ''); return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : (def === undefined ? now_() : def); }
-function idok_(v) { return /^[A-Za-z0-9_:|-]{2,80}$/.test(String(v || '')); }
+function idok_(v) { return !['__proto__','prototype','constructor'].includes(String(v)) && /^[A-Za-z0-9_:|-]{2,80}$/.test(String(v || '')); }
 function tempPw_() {
   const cs = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = '';
   const u = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '');
@@ -214,7 +215,7 @@ function login_(req) {
   const fails = parseInt(C.get(lk) || '0', 10);
   if (fails >= MAX_FAIL) fail_('locked', 'Terlalu banyak percobaan. Coba lagi sekitar 15 menit.');
   const u = userByEmail_(email);
-  const ok = !!u && u.d.aktif !== false && same_(hashPw_(pw, u.d.salt), u.d.hash);
+  const ok = !!u && u.d.aktif !== false && verifyPw_(pw, u.d.salt, u.d.hash);
   if (!ok) { C.put(lk, String(fails + 1), LOCK_TTL); fail_('cred', 'Email atau kata sandi tidak cocok.'); }
   if (!u.d.roles || !u.d.roles.length) fail_('norole', 'Peran Anda belum ditetapkan oleh admin program studi.');
   C.remove(lk);
@@ -238,7 +239,7 @@ function register_(req) {
 function chpw_(req) {
   const u = auth_(req); const nw = String(req.nw || '');
   if (nw.length < 8) fail_('weak', 'Kata sandi baru minimal 8 karakter.');
-  if (!same_(hashPw_(String(req.old || ''), u.d.salt), u.d.hash)) fail_('cred', 'Kata sandi lama tidak cocok.');
+  if (!verifyPw_(String(req.old || ''), u.d.salt, u.d.hash)) fail_('cred', 'Kata sandi lama tidak cocok.');
   if (nw === String(req.old)) fail_('same', 'Kata sandi baru harus berbeda dari yang lama.');
   u.d.salt = Utilities.getUuid(); u.d.hash = hashPw_(nw, u.d.salt); u.d.must = false; u.d.tv = (u.d.tv || 1) + 1;
   put_('users', u.id, u.sid || '', '', u.d);
@@ -371,7 +372,7 @@ W.cases = function (u, R, op) {
     const cur = ex ? ex.d : null;
     const out = Object.assign({ id: op.id, sid: u.d.sid }, o, { stat: stat, fb: cur ? cur.fb || '' : '', fbTgl: cur ? cur.fbTgl || '' : '', cons: cur ? !!cur.cons : false, tok: cur ? cur.tok : (/^[a-z0-9]{12,40}$/.test(String(d.tok || '')) ? d.tok : Utilities.getUuid().replace(/-/g, '').slice(0, 24)) });
     idn(out, cur);
-    if (!ex && out.jenis === 'Kasus' && !out.rm2 && stat !== 'draf') return false;
+    // Additional patient identifiers are optional; pseudonymous case IDs are preferred.
     put_('cases', op.id, u.d.sid, out.pid, out); return true;
   }
   // Validator
