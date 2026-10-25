@@ -9,9 +9,9 @@ const MON_LONG = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli'
 /* ---------- Beranda dosen/preseptor ---------- */
 PAGES['v-home'] = () => {
   const u = me(); const mc = mineCases(); const pend = mc.filter(c => c.stat === 'menunggu').sort((a, b) => a.tgl.localeCompare(b.tgl));
-  const pa = S.asms.filter(a => a.pid === u.id && a.stat === 'menunggu');
+  const pa = S.asms.filter(a => (a.pid === u.id || (a.jenis === 'MSF' && !(a.ratings||[]).some(r=>r.uid===u.id))) && a.stat === 'menunggu');
   const sids = new Set(mc.map(c => c.sid));
-  const fbH = mc.filter(c => c.fb && c.fbTgl).map(c => dayDiff(parseD(c.fbTgl), parseD(c.tgl)) * 24);
+  const fbH = mc.map(feedbackHours).filter(h => h != null);
   const old = pend.filter(c => ageD(c.tgl) > 7).length;
   const evs = S.events.filter(e => e.tgl >= iso(T0)).sort((a, b) => a.tgl.localeCompare(b.tgl));
   const myEpa = S.epaLog.filter(e => e.pid === u.id).sort((a, b) => b.tgl.localeCompare(a.tgl)).slice(0, 4);
@@ -44,9 +44,9 @@ PAGES['v-validate'] = () => {
 
 /* ---------- Penilaian ---------- */
 function gradeForm(id) {
-  const a = S.asms.find(x => x.id === id); if (!a) return; const dom = a.jenis === 'DOPS' ? DP_DOM : MC_DOM;
+  const a = S.asms.find(x => x.id === id); if (!a) return; const dom = assessmentDomains(a.jenis);
   openModal('Nilai ' + esc(a.judul), '<p class="sub">' + esc(sName(a.sid)) + ' &middot; ' + dfmt(a.tgl) + ' &middot; ' + esc(stase(a.st).nama) + '</p><p class="hint">Skala 1 sampai 9: 1 sampai 3 di bawah harapan, 4 sampai 6 sesuai harapan, 7 sampai 9 di atas harapan.</p>' +
-    '<form data-form="grade" data-id="' + a.id + '" class="form-grid">' + dom.map((d, i) => field('g' + i, esc(d), selectEl('g' + i, [1, 2, 3, 4, 5, 6, 7, 8, 9], 6))).join('') +
+    '<form data-form="grade" data-id="' + a.id + '" class="form-grid">' + dom.map((d, i) => field('g' + i, esc(d), selectEl('g' + i, [['', 'Pilih skor']].concat([1,2,3,4,5,6,7,8,9]), '', {req:true}))).join('') +
     field('g-kek', 'Kekuatan', textarea('g-kek', '', { rows: 2, req: true, ph: 'Hal yang sudah dilakukan dengan baik' }), '', 'span2') + field('g-perlu', 'Perlu ditingkatkan', textarea('g-perlu', '', { rows: 2, req: true }), '', 'span2') + field('g-renc', 'Rencana tindak lanjut', textarea('g-renc', '', { rows: 2, req: true, ph: 'Langkah konkret dan kapan diobservasi ulang' }), '', 'span2') +
     '<div class="form-act span2"><button type="button" class="btn" data-a="mclose">Batal</button><button class="btn primary" type="submit">Simpan penilaian</button></div></form>', { wide: true });
 }
@@ -58,12 +58,12 @@ function scoreForm() {
 }
 PAGES['v-assess'] = () => {
   const u = me(); const tab = UI.tab.assess || 'menunggu';
-  const pa = S.asms.filter(a => a.pid === u.id && a.stat === 'menunggu');
+  const pa = S.asms.filter(a => (a.pid === u.id || (a.jenis === 'MSF' && !(a.ratings||[]).some(r=>r.uid===u.id))) && a.stat === 'menunggu');
   const hist = S.asms.filter(a => a.pid === u.id && a.stat === 'dinilai').sort((a, b) => b.tgl.localeCompare(a.tgl)).slice(0, 12);
   const epl = S.epaLog.filter(e => e.pid === u.id).sort((a, b) => b.tgl.localeCompare(a.tgl));
   const nl = S.nilai.filter(n => n.tahap === 'PSPD').sort((a, b) => b.tgl.localeCompare(a.tgl)).slice(0, 12);
   let body = '';
-  if (tab === 'menunggu') body = pa.length ? '<div class="g2">' + pa.map(a => '<article class="card"><div class="card-b"><div class="asm-h"><div><b>' + esc(a.judul) + '</b><span class="mut">' + esc(sName(a.sid)) + ' &middot; ' + dfmt(a.tgl) + ' &middot; ' + esc(stName(a.st)) + '</span></div>' + pill('Menunggu', 'warn') + '</div><p class="hint">Rubrik ' + (a.jenis === 'DOPS' ? 'DOPS' : 'Mini-CEX') + ' dengan 7 domain dan umpan balik naratif.</p><button class="btn primary" data-a="grade" data-id="' + a.id + '">Mulai menilai</button></div></article>').join('') + '</div>' : empty('Tidak ada penilaian menunggu');
+  if (tab === 'menunggu') body = pa.length ? '<div class="g2">' + pa.map(a => '<article class="card"><div class="card-b"><div class="asm-h"><div><b>' + esc(a.judul) + '</b><span class="mut">' + esc(sName(a.sid)) + ' &middot; ' + dfmt(a.tgl) + ' &middot; ' + esc(stName(a.st)) + '</span></div>' + pill('Menunggu', 'warn') + '</div><p class="hint">Rubrik ' + esc(a.jenis) + ' dengan ' + assessmentDomains(a.jenis).length + ' domain dan umpan balik naratif.</p><button class="btn primary" data-a="grade" data-id="' + a.id + '">Mulai menilai</button></div></article>').join('') + '</div>' : empty('Tidak ada penilaian menunggu');
   else if (tab === 'epa') body = '<div class="g2">' + card('Keputusan Anda', epl.length ? epl.map(e => '<div class="fbi"><div class="fbi-h">' + pill('Level ' + e.level, 'good') + '<span>' + dfmt(e.tgl) + ' &middot; ' + esc(sName(e.sid)) + '</span></div><b>' + esc(EPAS[e.epa][0]) + '</b><p>' + esc(e.cm) + '</p></div>').join('') : empty('Belum ada keputusan'), '<button class="btn sm primary" data-a="epa-new">' + ic('plus', 14) + 'Keputusan baru</button>') + card('Tingkat entrustment', '<ol class="lv">' + EPA_LEVEL.map(x => '<li>' + esc(x) + '</li>').join('') + '</ol><p class="hint">Gunakan beberapa observasi dan sumber sebelum menaikkan tingkat.</p>') + '</div>';
   else if (tab === 'nilai') body = card('Nilai akademik terbaru', nl.length ? table(['Tanggal', 'Mahasiswa', 'Stase', 'Komponen', 'Nilai'], nl.map(n => '<tr><td class="nw">' + dfmt(n.tgl) + '</td><td>' + esc(sName(n.sid)) + '</td><td>' + esc(stName(n.unit)) + '</td><td>' + pill(n.komp, 'info') + '</td><td><b>' + n0(n.v) + '</b></td></tr>')) : empty('Belum ada nilai'), '<button class="btn sm primary" data-a="score-new">' + ic('plus', 14) + 'Input nilai</button>') + '<p class="hint mt">CBT, OSCE, CBD, dan MSF diinput di sini atau lewat impor CSV oleh admin. Mini-CEX, DOPS, dan Logbook dihitung otomatis dari asesmen dan logbook.</p>';
   else body = hist.length ? table(['Tanggal', 'Mahasiswa', 'Asesmen', 'Rata-rata', 'Rencana tindak lanjut'], hist.map(a => '<tr><td class="nw">' + dfmt(a.tgl) + '</td><td>' + esc(sName(a.sid)) + '</td><td>' + esc(a.judul) + '</td><td><b>' + n1(mean(a.sk)) + '</b></td><td class="wrapc">' + esc(a.renc) + '</td></tr>')) : empty('Belum ada riwayat penilaian');
@@ -188,7 +188,7 @@ PAGES['k-osce'] = () => {
 };
 function presStats() {
   return presList().map(p => {
-    const cs = S.cases.filter(c => c.pid === p.id); const fb = cs.filter(c => c.fb && c.fbTgl).map(c => dayDiff(parseD(c.fbTgl), parseD(c.tgl)) * 24);
+    const cs = S.cases.filter(c => c.pid === p.id); const fb = cs.map(feedbackHours).filter(h => h != null);
     const back = cs.filter(c => c.stat === 'menunggu' && ageD(c.tgl) > 7).length; const r = RNG(p.id.split('').reduce((t, ch) => t + ch.charCodeAt(0) * 31, 7));
     const att = SERVER ? null : Math.round(72 + r() * 26);
     return { p, n: cs.length, mhs: new Set(cs.map(c => c.sid)).size, h: fb.length ? mean(fb) : null, back, att, asm: S.asms.filter(a => a.pid === p.id && a.stat === 'dinilai').length };

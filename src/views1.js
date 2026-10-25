@@ -31,7 +31,7 @@ function render() {
 
 /* ---------- Publik: gerbang masuk yang sederhana ---------- */
 const LOGOS = () => '<div class="logos"><span class="logo-chip"><img src="' + LOGO_FK + '" alt="Logo Fakultas Kedokteran Universitas Murni Teguh"></span><span class="logo-chip"><img src="' + LOGO_RS + '" alt="Logo RS Murni Teguh Methodist Susanna Wesley"></span></div>';
-const showDemoList = () => !SERVER && typeof location !== 'undefined' && location.hash === DEMO_HASH;
+const showDemoList = () => !SERVER;
 function gate(inner) {
   return '<main class="gate"><section class="gate-brand"><div class="gate-top">' + LOGOS() + '</div><div class="gate-title"><h1>E-Logbook</h1><p class="gate-p">Program Studi Profesi Dokter</p><p class="gate-sub">' + esc(INSTITUSI) + '</p></div><p class="gate-foot">Rumah sakit pendidikan utama<b>' + esc(RSPU) + '</b></p></section>' +
     '<section class="gate-form"><button class="icon-btn gate-theme" data-a="theme" aria-label="Ganti tema">' + ic('moon') + '</button><div class="gate-card">' + inner + '</div></section></main>';
@@ -40,7 +40,7 @@ function loginView() {
   const accts = showDemoList() ? S.users.filter(u => u.demo) : [];
   return gate('<h2>Masuk</h2><p class="sub">Gunakan akun yang diberikan program studi.</p>' + (UI.msg ? '<div class="alert ' + (UI.msgTone || 'bad') + '" role="alert">' + esc(UI.msg) + '</div>' : '') +
     '<form data-form="login" autocomplete="on">' + field('lg-email', 'Email', input('lg-email', '', { type: 'text', req: true, ph: 'nama@umt.ac.id', extra: 'autocomplete="username" autocapitalize="off" spellcheck="false"' })) + field('lg-pw', 'Kata sandi', input('lg-pw', '', { type: 'password', req: true, extra: 'autocomplete="current-password"' })) + '<button class="btn primary lg block" type="submit">Masuk</button></form>' +
-    '<p class="hint c">Belum punya akun? <button class="lnk" data-a="go" data-p="register">Daftar</button></p>' +
+    '<p class="hint c"><a href="docs/panduan-live.html" target="_blank" rel="noopener">Panduan dan bantuan</a></p><p class="hint c">Belum punya akun? <button class="lnk" data-a="go" data-p="register">Daftar</button></p>' +
     (SERVER ? '' : '<p class="hint c demo-flag">Mode demonstrasi. Data hanya tersimpan di peramban ini.</p>') +
     (accts.length ? '<div class="demo-box"><div class="eyebrow">Akun demo &middot; sandi <code>' + DEMO_PW + '</code></div><div class="demo-list">' + accts.map(u => '<button type="button" class="demo-row" data-a="demo" data-e="' + esc(u.email) + '"><span class="av">' + esc(u.nama.charAt(0)) + '</span><span class="dr-t"><b>' + esc(u.nama) + '</b><small>' + u.roles.map(r => ROLE_LABEL[r]).join(' + ') + '</small></span>' + ic('arrow', 16) + '</button>').join('') + '</div></div>' : ''));
 }
@@ -49,7 +49,7 @@ function registerView() {
     '<form data-form="register" autocomplete="off">' + field('rg-nama', 'Nama lengkap', input('rg-nama', '', { req: true })) + field('rg-email', 'Email', input('rg-email', '', { type: 'email', req: true })) + field('rg-unit', 'NIM atau NIP', input('rg-unit', '')) + field('rg-harap', 'Peran yang diharapkan', selectEl('rg-harap', ['Mahasiswa', 'Dosen', 'Preseptor'], 'Mahasiswa')) + field('rg-pw', 'Kata sandi', input('rg-pw', '', { type: 'password', req: true, extra: 'minlength="8" autocomplete="new-password"' }), 'Minimal 8 karakter. Jangan memakai kata sandi dari layanan lain.') + '<button class="btn primary lg block" type="submit">Kirim pendaftaran</button></form>' +
     '<p class="hint c">Sudah punya akun? <button class="lnk" data-a="go" data-p="login">Masuk</button></p>');
 }
-function publicView() { if (UI.booting) return gate('<h2>Memuat data</h2><p class="sub">Mengambil data Anda dari server. Mohon tunggu sebentar.</p>'); return UI.route === 'register' ? registerView() : loginView(); }
+function publicView() { if (SERVER && !LIVE_CONFIGURED) return gate('<h2>Versi live sedang disiapkan</h2><p class="sub">Backend belum dikonfigurasi. Pencatatan data belum dibuka.</p><p>Hubungi admin program studi untuk aktivasi.</p><a class="btn" href="demo.html">Lihat demonstrasi dengan data contoh</a>'); if (UI.booting) return gate('<h2>Memuat data</h2><p class="sub">Mengambil data Anda dari server. Mohon tunggu sebentar.</p>'); return UI.route === 'register' ? registerView() : loginView(); }
 
 /* ---------- Shell ---------- */
 function shell() {
@@ -65,7 +65,7 @@ function shell() {
     '<div class="scrim ' + (UI.navOpen ? 'on' : '') + '" data-a="navclose"></div>' +
     '<div class="main"><header class="top"><div class="pad top-in"><button class="icon-btn menu-btn" data-a="navopen" aria-label="Buka menu">' + ic('menu') + '</button><div class="top-t"><span class="eyebrow">' + ROLE_LABEL[role] + '</span><b>' + esc(TITLES[UI.route] || '') + '</b></div><div class="top-r">' +
     (multi ? '<div class="seg" role="group" aria-label="Ganti peran">' + u.roles.map(r => '<button class="' + (r === role ? 'on' : '') + '" data-a="role" data-r="' + r + '">' + ROLE_LABEL[r] + '</button>').join('') + '</div>' : '') +
-    '<span class="chip-priv" title="Identitas pasien tersamarkan kecuali Break Glass aktif">' + ic('lock', 14) + 'Privacy Mode aktif</span><button class="icon-btn" data-a="theme" aria-label="Ganti tema">' + ic('moon') + '</button></div></div></header>' +
+    syncIndicator() + '<span class="chip-priv" title="Identitas pasien tersamarkan kecuali Break Glass aktif">' + ic('lock', 14) + 'Privacy Mode aktif</span><button class="icon-btn" data-a="theme" aria-label="Ganti tema">' + ic('moon') + '</button></div></div></header>' +
     '<main class="content pad" id="main">' + PAGES[UI.route](UI.params) + '</main></div></div>';
 }
 
@@ -110,7 +110,7 @@ function logRows(sid) {
 PAGES['m-log'] = () => {
   const sid = curSid(), f = logFilters(); const rows = logRows(sid); const per = 10; const pages = Math.max(1, Math.ceil(rows.length / per)); f.page = clamp(f.page, 1, pages);
   const s = stats(sid); const sl = rows.slice((f.page - 1) * per, f.page * per);
-  return pageHead('Logbook kasus klinis', 'Catat kasus dan kegiatan harian, lalu ajukan ke dosen atau preseptor untuk divalidasi.', '<button class="btn" data-a="log-csv">' + ic('copy', 16) + 'Salin rekap CSV</button><button class="btn primary" data-a="case-new">' + ic('plus', 16) + 'Catat entri baru</button>') +
+  return pageHead('Logbook kasus klinis', 'Catat kasus dan kegiatan harian, lalu ajukan ke dosen atau preseptor untuk divalidasi.', '<button class="btn" data-a="log-csv">' + ic('copy', 16) + 'Unduh rekap CSV</button><button class="btn primary" data-a="case-new">' + ic('plus', 16) + 'Catat entri baru</button>') +
     '<div class="chips">' + [['', 'Semua', s.entri], ['draf', 'Draf', s.draf], ['menunggu', 'Menunggu', s.menunggu], ['valid', 'Divalidasi', s.valid], ['kembali', 'Dikembalikan', s.kembali]].map(x => '<button class="chipf ' + (f.stat === x[0] ? 'on' : '') + '" data-a="logstat" data-v="' + x[0] + '">' + x[1] + ' <b>' + x[2] + '</b></button>').join('') + '</div>' +
     '<div class="toolbar"><div class="srch">' + ic('search', 16) + '<input id="log-q" data-f="log.q" type="search" value="' + esc(f.q) + '" placeholder="Cari diagnosis atau stase" aria-label="Cari"></div>' +
     selectEl('log-st', [['', 'Semua stase']].concat(S.stases.map(x => [x.id, x.pendek])), f.st, { extra: 'data-f="log.st" aria-label="Stase"' }) + selectEl('log-jenis', [['', 'Semua jenis'], 'Kasus', 'Kegiatan', 'Refleksi'], f.jenis, { extra: 'data-f="log.jenis" aria-label="Jenis"' }) + '</div>' +
@@ -127,7 +127,7 @@ function caseForm(id) {
     field('cf-st', 'Stase', selectEl('cf-st', S.stases.map(x => [x.id, x.nama]), v.st, { extra: 'data-ch="case-stase"' })) + field('cf-wah', 'Tempat', selectEl('cf-wah', S.wahana.map(w => [w.id, w.nama]), v.wah)) +
     field('cf-dx', 'Diagnosis atau nama kegiatan', input('cf-dx', v.dx, { req: true, extra: 'list="cf-dxl" data-ch="case-dx" autocomplete="off"' }) + '<datalist id="cf-dxl">' + dl + '</datalist>', 'Pilih dari daftar stase atau ketik sendiri.', 'span2') +
     '<div class="kasus-only span2 form-grid inner">' + field('cf-kat', 'Kategori layanan', selectEl('cf-kat', ['FKTP', 'FKRTL'], v.kat)) + field('cf-sis', 'Sistem organ', selectEl('cf-sis', SISTEM, v.sis || SISTEM[0])) + field('cf-usia', 'Usia pasien (tahun)', input('cf-usia', v.usia, { type: 'number', extra: 'min="0" max="120"' })) + field('cf-jk', 'Jenis kelamin', selectEl('cf-jk', [['L', 'Laki-laki'], ['P', 'Perempuan']], v.jk)) +
-    field('cf-ini', 'Inisial pasien', input('cf-ini', '', { ph: c ? 'Tersimpan. Isi hanya untuk mengubah' : 'Contoh: A.B.' }), 'Identitas disimpan terenkripsi dan tersamarkan secara bawaan.') + field('cf-rm', 'Nomor rekam medis', input('cf-rm', '', { ph: c ? 'Tersimpan. Isi hanya untuk mengubah' : '' })) +
+    field('cf-ini', 'Inisial pasien (opsional)', input('cf-ini', '', { ph: c ? 'Tersimpan. Isi hanya untuk mengubah' : 'Contoh: A.B.' }), 'Identitas disimpan terenkripsi dan tersamarkan secara bawaan.') + field('cf-rm', 'Nomor rekam medis (opsional)', input('cf-rm', '', { ph: c ? 'Tersimpan. Isi hanya untuk mengubah' : '' })) +
     field('cf-ter', 'Tingkat keterlibatan', selectEl('cf-ter', KETERLIBATAN, v.ter)) + '</div>' +
     field('cf-pid', 'Preseptor atau dosen penilai', selectEl('cf-pid', presList().map(p => [p.id, p.nama]), v.pid), '', 'span2') +
     field('cf-sum', 'Ringkasan SOAP', textarea('cf-sum', v.sum, { rows: 5, ph: 'S: keluhan utama dan riwayat. O: temuan pemeriksaan. A: diagnosis kerja dan banding. P: rencana tata laksana dan edukasi.' }), '', 'span2') +
@@ -170,7 +170,7 @@ PAGES['m-sched'] = () => {
 PAGES['m-asm'] = () => {
   const sid = curSid(); const tab = UI.tab.asm || 'menunggu'; const all = asmsOf(sid).slice().sort((a, b) => b.tgl.localeCompare(a.tgl));
   const list = all.filter(a => tab === 'menunggu' ? a.stat === 'menunggu' : a.stat === 'dinilai');
-  const dom = a => a.jenis === 'DOPS' ? DP_DOM : MC_DOM;
+  const dom = a => assessmentDomains(a.jenis);
   return pageHead('Asesmen', 'Asesmen akademik dan asesmen di tempat kerja Anda, lengkap dengan umpan balik.', '<button class="btn primary" data-a="asm-new">' + ic('plus', 16) + 'Ajukan penilaian</button>') +
     '<div class="tabs" role="tablist">' + [['menunggu', 'Menunggu penilaian', all.filter(a => a.stat === 'menunggu').length], ['dinilai', 'Sudah dinilai', all.filter(a => a.stat === 'dinilai').length]].map(t => '<button role="tab" aria-selected="' + (tab === t[0]) + '" class="' + (tab === t[0] ? 'on' : '') + '" data-a="tab" data-k="asm" data-v="' + t[0] + '">' + t[1] + ' <b>' + t[2] + '</b></button>').join('') + '</div>' +
     (list.length ? '<div class="g2">' + list.slice(0, 20).map(a => '<article class="card asm"><div class="card-b"><div class="asm-h"><div><b>' + esc(a.judul) + '</b><span class="mut">' + dfmt(a.tgl) + ' &middot; ' + esc(stName(a.st)) + ' &middot; ' + esc(pname(a.pid)) + '</span></div>' + pill(a.stat === 'dinilai' ? 'Rata-rata ' + n1(mean(a.sk)) : 'Menunggu', asmTone(a.stat)) + '</div>' +
@@ -212,10 +212,10 @@ function portfolio(sid) {
     const units = th === 'PSPD' ? sched(st).filter(x => x.start <= T0).map(x => ({ n: stase(x.id).nama, r: stScore(sid, x.id) })) : PSSK_BLOK.map(b => ({ n: b, r: blokScore(sid, b) }));
     const keys = Object.keys(th === 'PSPD' ? S.bobotStase : S.bobotBlok), B = th === 'PSPD' ? S.bobotStase : S.bobotBlok;
     body = '<div class="tabs sm" role="tablist">' + [['PSPD', 'PSPD, tahap profesi'], ['PSSK', 'PSSK, tahap sarjana']].map(t => '<button role="tab" aria-selected="' + (th === t[0]) + '" class="' + (th === t[0] ? 'on' : '') + '" data-a="tab" data-k="nilai" data-v="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
-      card('Nilai ' + (th === 'PSPD' ? 'stase' : 'blok') + ' terbobot', table([th === 'PSPD' ? 'Stase' : 'Blok'].concat(keys.map(k => esc(k) + ' <small>' + B[k] + '%</small>')).concat(['Nilai terbobot']), units.map(u => '<tr><td><b>' + esc(u.n) + '</b></td>' + u.r.rows.map(r => '<td>' + (r.v == null ? '<span class="mut">belum</span>' : n0(r.v)) + '</td>').join('') + '<td><b>' + (u.r.total == null ? '-' : n1(u.r.total)) + '</b></td></tr>'))) +
+      card('Nilai ' + (th === 'PSPD' ? 'stase' : 'blok') + ' terbobot', table([th === 'PSPD' ? 'Stase' : 'Blok'].concat(keys.map(k => esc(k) + ' <small>' + B[k] + '%</small>')).concat(['Nilai sementara']), units.map(u => '<tr><td><b>' + esc(u.n) + '</b></td>' + u.r.rows.map(r => '<td>' + (r.v == null ? '<span class="mut">belum</span>' : n0(r.v)) + '</td>').join('') + '<td><b>' + (u.r.total == null ? '-' : n1(u.r.total)) + '</b>' + (u.r.rows.some(r=>r.v==null) ? '<div class="mut">Sementara; komponen belum lengkap</div>' : '') + '</td></tr>'))) +
       '<p class="hint mt">Nilai terbobot dihitung dari komponen yang sudah dinilai. Bobot komponen yang belum dinilai dikeluarkan lalu bobot sisanya disetarakan ke 100 persen. Mini-CEX, DOPS, dan Logbook diturunkan otomatis dari data asesmen dan logbook.</p>';
   } else {
-    body = '<div class="g2">' + card('Tingkat entrustment seluruh EPA', epaList(sid)) + card('Riwayat keputusan entrustment', S.epaLog.filter(e => e.sid === sid).sort((a, b) => b.tgl.localeCompare(a.tgl)).map(e => '<div class="fbi"><div class="fbi-h">' + pill('Level ' + e.level, 'good') + '<span>' + dfmt(e.tgl) + ' &middot; ' + esc(pname(e.pid)) + '</span></div><b>' + esc(EPAS[e.epa][0]) + '</b><p>' + esc(e.cm) + '</p></div>').join('') || empty('Belum ada keputusan entrustment')) + '</div>' +
+    body = '<div class="g2">' + card('Tingkat entrustment seluruh EPA', epaList(sid)) + card('Riwayat keputusan entrustment', S.epaLog.filter(e => e.sid === sid).sort((a, b) => b.tgl.localeCompare(a.tgl)).map(e => '<div class="fbi"><div class="fbi-h">' + pill('Level ' + e.level, 'good') + '<span>' + dfmt(e.tgl) + ' &middot; ' + esc(pname(e.pid)) + '</span></div><b>' + esc(EPAS[e.epa][0]) + '</b><p>' + esc(e.cm) + '</p><p class="hint">Bukti: ' + (e.evidence||[]).map(id=>{const a=S.asms.find(x=>x.id===id);return a?esc(a.judul)+' ('+dfmt(a.tgl)+')':esc(id);}).join('; ') + '</p></div>').join('') || empty('Belum ada keputusan entrustment')) + '</div>' +
       '<div class="mt">' + card('Arti tingkat entrustment', '<ol class="lv">' + EPA_LEVEL.map(x => '<li>' + esc(x) + '</li>').join('') + '</ol>') + '</div>';
   }
   return '<div class="tabs" role="tablist">' + tabs.map(t => '<button role="tab" aria-selected="' + (tab === t[0]) + '" class="' + (tab === t[0] ? 'on' : '') + '" data-a="tab" data-k="port" data-v="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' + body;

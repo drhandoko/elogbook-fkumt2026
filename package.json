@@ -1,0 +1,1 @@
+{"name":"elogbook-fkumt2026","private":true,"version":"3.0.0","scripts":{"build":"node build.js","test":"node tests/live.js && node tests/render.js"}}
