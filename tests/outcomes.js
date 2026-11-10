@@ -13,3 +13,11 @@ ok(E.calculate(c,[],'s1',4).cpl[1].status,'insufficient');
 for(const mutate of [x=>x.cpmk[0].weight=0,x=>x.cpmk[0].cpl='unknown',x=>x.evidence.push({...x.evidence[0]}),x=>x.cpl[0].threshold=101]){const x=JSON.parse(JSON.stringify(c));mutate(x);ok(E.validate(x).length>0,true);}
 ok(E.calculate(c,[],'',2).errors.length>0,true);
 console.log(n+' outcome engine checks passed');
+const sub=JSON.parse(JSON.stringify(c));sub.indicators=[{id:'I',cpl:'A'}];sub.evidence.forEach((e,i)=>Object.assign(e,{sub:'SUB'+i,label:'Direct evidence',indicator:'I'}));
+ok(E.validate(sub),[]);
+ok(E.calculate(sub,[row('CBT',99)],'s1',2).cpl[0].score,null);
+ok(E.calculate(sub,[{...row('CBT',80),sub:'SUB0'}],'s1',2).cpl[0].score,80);
+ok(E.calculate(sub,[{...row('CBT',80),sub:'SUB0'},{...row('CBT',50),sub:'SUB0'}],'s1',2).cpmk[0].evidence[0].status,'ambiguous');
+let dup=JSON.parse(JSON.stringify(sub));dup.cpmk.push({...dup.cpmk[0],id:'M2'});dup.evidence.push({...dup.evidence[0],id:'E2',cpmk:'M2'});ok(E.validate(dup).some(e=>e.includes('Duplicate direct')),true);
+let bad=JSON.parse(JSON.stringify(sub));bad.evidence[0].indicator='X';ok(E.validate(bad).length>0,true);bad=JSON.parse(JSON.stringify(sub));bad.status='approved';ok(E.validate(bad).length>0,true);
+console.log(n+' total engine checks passed');

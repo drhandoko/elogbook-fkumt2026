@@ -23,3 +23,11 @@ vm.runInContext("S.session={uid:'u-m1',role:'mahasiswa'};UI.params={};render()",
 ok(!app.innerHTML.includes('data-a="outcome-config"'),'student cannot edit mapping');
 ok(vm.runInContext("outcomeRadar([{id:'A',score:null},{id:'B',score:0,complete:true},{id:'C',score:70,complete:false}]).match(/<circle /g).length",ctx)===2,'missing radar point is not plotted as zero');
 console.log(n+' outcome view checks passed');
+ok(!app.innerHTML.includes('data-ch="outcome-student"'),'student cannot select another student');
+ok(app.innerHTML.includes('sub-CPMK'),'direct evidence drilldown shown');
+vm.runInContext("S.session={uid:S.users.find(u=>u.roles.includes('kaprodi')).id,role:'kaprodi'};UI.params={};render()",ctx);
+ok(app.innerHTML.includes('Kelola CPL, indikator, CPMK dan sub-CPMK'),'Kaprodi manages full draft hierarchy');
+ok(app.innerHTML.includes('data-ch="outcome-student"'),'Kaprodi selects student');
+ok(vm.runInContext("OutcomeEngine.validate(sampleOutcomeConfig()).length",ctx)===0,'direct hierarchy valid');
+ok(vm.runInContext("OutcomeEngine.calculate(outcomeConfig(),outcomeDirectGrades(),S.students[0].id,2).cpl.some(c=>c.status==='insufficient')",ctx),'missing direct evidence shown as insufficient');
+console.log(n+' total view checks passed');

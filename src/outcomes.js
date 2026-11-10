@@ -4,6 +4,7 @@ const OutcomeEngine = (() => {
   function validate(c) {
     const errors=[];
     if (!c || c.version!==1 || !Array.isArray(c.cpl) || !Array.isArray(c.cpmk) || !Array.isArray(c.evidence)) return ['Expected version 1 with cpl, cpmk and evidence arrays.'];
+    if(c.status && c.status!=='draft')errors.push('Preview accepts draft only; academic approval cannot be simulated as official.');
     if (!c.name || !c.revision || !c.source) errors.push('Name, revision and curriculum source are required.');
     if(c.cpl.length>20||c.cpmk.length>500||c.evidence.length>2000) errors.push('Configuration exceeds preview limits.');
     const ids=a=>a.map(x=>x.id), unique=a=>new Set(a).size===a.length;
@@ -11,7 +12,10 @@ const OutcomeEngine = (() => {
     c.cpl.forEach(x=>{if(!x.label||!finite(x.threshold)||x.threshold<0||x.threshold>100)errors.push('Invalid CPL label/threshold: '+x.id);});
     c.cpmk.forEach(x=>{if(!x.label||!c.cpl.some(y=>y.id===x.cpl)||!finite(x.weight)||x.weight<=0||!Number.isInteger(x.semester)||x.semester<1||x.semester>8)errors.push('Invalid CPMK link/weight/semester: '+x.id);});
     const keys=[];
-    c.evidence.forEach(x=>{if(!c.cpmk.some(y=>y.id===x.cpmk)||!x.block||!x.assessment||!finite(x.weight)||x.weight<=0||!finite(x.max)||x.max<=0||!['assessment-component','aggregate-proxy'].includes(x.type))errors.push('Invalid evidence mapping: '+x.id);keys.push([x.cpmk,x.block,x.assessment].join('|'));});
+    if(c.indicators){const is=c.indicators.map(x=>x.id);if(new Set(is).size!==is.length||c.indicators.some(x=>!x.id||!c.cpl.some(y=>y.id===x.cpl)))errors.push('Invalid or duplicate CPL indicator.');}
+
+    c.evidence.forEach(x=>{if(!c.cpmk.some(y=>y.id===x.cpmk)||!x.block||!x.assessment||!finite(x.weight)||x.weight<=0||!finite(x.max)||x.max<=0||!['assessment-component','aggregate-proxy'].includes(x.type))errors.push('Invalid evidence mapping: '+x.id);if(x.sub && (!x.label||!c.indicators?.some(i=>i.id===x.indicator&&i.cpl===c.cpmk.find(m=>m.id===x.cpmk)?.cpl)))errors.push('Sub-CPMK requires label and matching CPL indicator: '+x.id);keys.push([x.cpmk,x.block,x.assessment,x.sub||''].join('|'));});
+    if(c.evidence.some(e=>e.sub)){const direct=c.evidence.filter(e=>e.sub).map(e=>[e.block,e.assessment,e.sub].join('|'));if(!unique(direct))errors.push('Duplicate direct sub-CPMK contribution. Split explicitly rather than count twice.');}
     if(!unique(keys))errors.push('Duplicate assessment mapping within a CPMK.');
     return errors;
   }
@@ -23,7 +27,7 @@ const OutcomeEngine = (() => {
     const used=new Set();
     const cpmk=active.map(m=>{
       const evidence=c.evidence.filter(e=>e.cpmk===m.id).map(e=>{
-        const matches=rows.filter(n=>n.unit===e.block&&n.komp===e.assessment); matches.forEach(n=>used.add(n));
+        const matches=rows.filter(n=>n.unit===e.block&&n.komp===e.assessment&&(!e.sub||n.sub===e.sub)); matches.forEach(n=>used.add(n));
         let status='missing',score=null,date=null;
         if(matches.length>1) status='ambiguous';
         else if(matches.length===1){const n=matches[0];date=n.tgl||null;if(!finite(n.v)||n.v<0||n.v>e.max)status='invalid';else {status='available';score=n.v/e.max*100;}}
