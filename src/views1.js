@@ -33,12 +33,12 @@ function render() {
 const LOGOS = () => '<div class="logos"><span class="logo-chip"><img src="' + LOGO_FK + '" alt="Logo Fakultas Kedokteran Universitas Murni Teguh"></span><span class="logo-chip"><img src="' + LOGO_RS + '" alt="Logo RS Murni Teguh Methodist Susanna Wesley"></span></div>';
 const showDemoList = () => !SERVER;
 function gate(inner) {
-  return '<main class="gate"><section class="gate-brand"><div class="gate-top">' + LOGOS() + '</div><div class="gate-title"><h1>E-Logbook</h1><p class="gate-p">Program Studi Profesi Dokter</p><p class="gate-sub">' + esc(INSTITUSI) + '</p></div><p class="gate-foot">Rumah sakit pendidikan utama<b>' + esc(RSPU) + '</b></p></section>' +
+  return '<main class="gate"><section class="gate-brand"><div class="gate-top">' + LOGOS() + '</div><div class="gate-title"><h1>E-Portofolio FK UMT</h1><p class="gate-p">S.Ked &amp; Profesi Dokter</p><p class="gate-sub">' + esc(INSTITUSI) + '</p></div><p class="gate-foot">Rumah sakit pendidikan utama<b>' + esc(RSPU) + '</b></p></section>' +
     '<section class="gate-form"><button class="icon-btn gate-theme" data-a="theme" aria-label="Ganti tema">' + ic('moon') + '</button><div class="gate-card">' + inner + '</div></section></main>';
 }
 function loginView() {
   const accts = showDemoList() ? S.users.filter(u => u.demo) : [];
-  return gate('<h2>Masuk</h2><p class="sub">Gunakan akun yang diberikan program studi.</p>' + (UI.msg ? '<div class="alert ' + (UI.msgTone || 'bad') + '" role="alert">' + esc(UI.msg) + '</div>' : '') +
+  return gate(programSelector() + '<h2>Masuk</h2><p class="sub">Gunakan akun yang diberikan program studi.</p>' + (UI.msg ? '<div class="alert ' + (UI.msgTone || 'bad') + '" role="alert">' + esc(UI.msg) + '</div>' : '') +
     '<form data-form="login" autocomplete="on">' + field('lg-email', 'Email', input('lg-email', '', { type: 'text', req: true, ph: 'nama@umt.ac.id', extra: 'autocomplete="username" autocapitalize="off" spellcheck="false"' })) + field('lg-pw', 'Kata sandi', input('lg-pw', '', { type: 'password', req: true, extra: 'autocomplete="current-password"' })) + '<button class="btn primary lg block" type="submit">Masuk</button></form>' +
     '<p class="hint c"><a href="docs/panduan-live.html" target="_blank" rel="noopener">Panduan dan bantuan</a></p><p class="hint c">Belum punya akun? <button class="lnk" data-a="go" data-p="register">Daftar</button></p>' +
     (SERVER ? '' : '<p class="hint c demo-flag">Mode demonstrasi. Data hanya tersimpan di peramban ini.</p>') +
@@ -53,13 +53,13 @@ function publicView() { if (SERVER && !LIVE_CONFIGURED) return gate('<h2>Versi l
 
 /* ---------- Shell ---------- */
 function shell() {
-  const u = me(), role = S.session.role; const nav = NAV[role];
-  if (!PAGES[UI.route] || !(nav.some(n => n[0] === UI.route) || UI.route === 'v-student')) UI.route = nav[0][0];
+  const u = me(), role = S.session.role; const nav = programNavigation(role);
+  if (!PAGES[UI.route] || !(nav.some(n => n[0] === UI.route) || (UI.program !== 'PSSK' && UI.route === 'v-student'))) UI.route = nav[0][0];
   const multi = u.roles.length > 1;
   const act = UI.route === 'v-student' ? 'v-dir' : UI.route;
-  const sub = role === 'mahasiswa' && u.sid ? esc(stats(u.sid).curS.pendek) + ' &middot; ' + esc(studentById(u.sid).nim) : esc(u.unit || '');
-  return '<div class="shell"><aside class="side ' + (UI.navOpen ? 'open' : '') + '" id="side"><div class="side-top"><button class="brand inv" data-a="nav" data-p="' + nav[0][0] + '" aria-label="Beranda">' + LOGOS() + '<span class="brand-t"><b>E-Logbook</b><small>Profesi Dokter UMT</small></span></button></div>' +
-    '<div class="role-badge"><span class="eyebrow">Peran aktif</span><b>' + ROLE_LABEL[role] + '</b></div>' +
+  const sub = UI.program !== 'PSSK' && role === 'mahasiswa' && u.sid ? esc(stats(u.sid).curS.pendek) + ' &middot; ' + esc(studentById(u.sid).nim) : esc(u.unit || '');
+  return '<div class="shell"><aside class="side ' + (UI.navOpen ? 'open' : '') + '" id="side"><div class="side-top"><button class="brand inv" data-a="nav" data-p="' + nav[0][0] + '" aria-label="Beranda">' + LOGOS() + '<span class="brand-t"><b>E-Portofolio</b><small>' + esc(programTitle()) + '</small></span></button></div>' +
+    programSelector() + '<div class="role-badge"><span class="eyebrow">Peran aktif</span><b>' + ROLE_LABEL[role] + '</b></div>' +
     '<nav class="snav" aria-label="Menu ' + ROLE_LABEL[role] + '">' + nav.map(n => '<button class="sn ' + (act === n[0] ? 'on' : '') + '" data-a="nav" data-p="' + n[0] + '"' + (act === n[0] ? ' aria-current="page"' : '') + '>' + ic(n[2], 18) + '<span>' + n[1] + '</span></button>').join('') + '</nav>' +
     '<div class="side-foot"><div class="site-note">' + ic('pin', 14) + '<span>' + esc(RSPU) + '</span></div><div class="usercard"><span class="av">' + esc(u.nama.charAt(0)) + '</span><span class="uc-t"><b>' + esc(u.nama) + '</b><small>' + sub + '</small></span></div><button class="sn" data-a="pw">' + ic('lock', 18) + '<span>Ganti kata sandi</span></button><button class="sn" data-a="logout">' + ic('logout', 18) + '<span>Keluar</span></button></div></aside>' +
     '<div class="scrim ' + (UI.navOpen ? 'on' : '') + '" data-a="navclose"></div>' +
