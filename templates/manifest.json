@@ -1,0 +1,77 @@
+{
+  "verified_date": "2026-11-10",
+  "source_folder": "https://drive.google.com/drive/folders/1UcB4iEj3kfpxP9B1iBI58cqBR7ZJylHs",
+  "text_preservation": "CSV source text preserved, line endings normalized to LF. Original guide and README intentionally not republished.",
+  "files": [
+    {
+      "path": "source-reference/01_master_diagnosis.csv",
+      "source": "https://drive.google.com/file/d/1oOyoiPruzZTiAqGMGiRCr7FlNP8VwF46/view",
+      "sha256": "c38b60642626e8602b1ff3a98ebb58fc8b6435097720ed49f2273c0e4a35cda0",
+      "bytes": 109,
+      "purpose": "reference_only_not_production_import"
+    },
+    {
+      "path": "source-reference/02_master_keterampilan.csv",
+      "source": "https://drive.google.com/file/d/1e8fThEuDfubXG1dcjRssg4_EHrGg4gL1/view",
+      "sha256": "61e6d0bfeb99e61779401d821547fba3916db959a9ef209b48becbcc14c20614",
+      "bytes": 107,
+      "purpose": "reference_only_not_production_import"
+    },
+    {
+      "path": "source-reference/03_master_obat.csv",
+      "source": "https://drive.google.com/file/d/1lylulAiW36LluQELRBQWHJnCWQ8FOTu2/view",
+      "sha256": "6b3525f39143529623cb779769a1f09f5272f593f6c65219d1f73578744de102",
+      "bytes": 152,
+      "purpose": "reference_only_not_production_import"
+    },
+    {
+      "path": "source-reference/04_pengguna.csv",
+      "source": "https://drive.google.com/file/d/18MYwLdk-zu2MpV--_hBFiwISZa0EBfYU/view",
+      "sha256": "c803a465df39fab7d1ce7cca8e30805292059ee34cf3475e865e20bf0e1c3cb4",
+      "bytes": 259,
+      "purpose": "reference_only_not_production_import"
+    },
+    {
+      "path": "source-reference/05_relabel_prodi.csv",
+      "source": "https://drive.google.com/file/d/1Wy2Yl0rVbpFK-TbSzpAV74plNEYKXJEF/view",
+      "sha256": "748a3606f5c7628ea214db98665a898a826a48d27dcd6f7ee995257fe0a671c2",
+      "bytes": 102,
+      "purpose": "reference_only_not_production_import"
+    },
+    {
+      "path": "source-reference/06a_nilai_event_skor_total.csv",
+      "source": "https://drive.google.com/file/d/1o2YDhek5iYiTlKjliW6vhvJN7VK_aapu/view",
+      "sha256": "3108cb9136ab89b3c903df5a1756e97e66f957051381617652260c7018286010",
+      "bytes": 184,
+      "purpose": "reference_only_not_production_import"
+    },
+    {
+      "path": "source-reference/06b_nilai_event_per_dimensi.csv",
+      "source": "https://drive.google.com/file/d/1vsq9nyftyFxuzqtRR17uo1SMMYrqGmps/view",
+      "sha256": "78a58ca29519b3e75ceba643f0b9e5210bb614088dc3ff172d356130aff7506e",
+      "bytes": 248,
+      "purpose": "reference_only_not_production_import"
+    },
+    {
+      "path": "source-reference/07a_cbt_hasil_ujian_per_sesi.csv",
+      "source": "https://drive.google.com/file/d/1t1mP5jBZpSjAaHOdSnctn_Gqj0M17t92/view",
+      "sha256": "ff19afb7a3895ad774b8eca43418418e739d9cee19ef57d609fa30276523d60e",
+      "bytes": 480,
+      "purpose": "reference_only_not_production_import"
+    },
+    {
+      "path": "source-reference/07b_cbt_format_glide_lama.csv",
+      "source": "https://drive.google.com/file/d/14MSBAD7lWmhipEKEbTNHSWoS7j1WoM4F/view",
+      "sha256": "af8005bd592c090fe0988d77a92b4aea306cb10ee1cb061ee7a6a10684254cf3",
+      "bytes": 454,
+      "purpose": "reference_only_not_production_import"
+    },
+    {
+      "path": "source-reference/08_osce_penilaian_glide.csv",
+      "source": "https://drive.google.com/file/d/1ZgV27Z5HlW8evrpyvlQgTF-QEfaBK_Er/view",
+      "sha256": "1893e978c966fb5d55e1ad1710e2efab751a40173a80936b2b16adcdf0261687",
+      "bytes": 1012,
+      "purpose": "reference_only_not_production_import"
+    }
+  ]
+}
