@@ -6,7 +6,7 @@ const R = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
 const W = (f, t) => { fs.mkdirSync(path.dirname(path.join(__dirname, f)), { recursive: true }); fs.writeFileSync(path.join(__dirname, f), t); };
 const b64 = f => fs.readFileSync(path.join(__dirname, f)).toString('base64');
 W('src/logos.js', '/* dibuat otomatis oleh build.js dari assets/ */\nconst LOGO_FK = \'data:image/svg+xml;base64,' + b64('assets/logo-fk.svg') + '\';\nconst LOGO_RS = \'data:image/svg+xml;base64,' + b64('assets/logo-rs.svg') + '\';\n');
-const bundle = ['logos', 'core', 'seed', 'store', 'ui', 'views1', 'views2', 'views3', 'actions', 'programs', 'enhancements'].map(n => R('src/' + n + '.js')).join('\n');
+const bundle = ['logos', 'core', 'seed', 'store', 'ui', 'views1', 'views2', 'views3', 'actions', 'programs', 'outcomes', 'outcome-preview', 'enhancements'].map(n => R('src/' + n + '.js')).join('\n');
 const css = R('src/style.css');
 const fonts = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">';
 const body = '<div id="app"></div><div id="busy" class="busy" hidden aria-live="polite" aria-label="Memproses"></div><div id="modal" hidden></div><div id="toast" class="toast" hidden></div>\n<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>';
@@ -24,6 +24,8 @@ if (liveUrl && !/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec
 W('config.js', R('src/config.js').replace("const API_URL = '';", 'const API_URL = ' + JSON.stringify(liveUrl) + ';'));
 W('demo.html', R('index.html').replace('<script src="config.js"></script>', '<script>window.ELOGBOOK_DEMO = true;</script><script src="config.js"></script>'));
 W('preview.html', R('dist/elogbook-fragment.html'));
+W('outcome-demo.html', R('demo.html').replace('window.ELOGBOOK_DEMO = true;', 'window.ELOGBOOK_DEMO = true;window.ELOGBOOK_OUTCOME_PREVIEW = true;'));
+W('public/outcome-demo.html', R('outcome-demo.html'));
 ['index.html','config.js','demo.html','logo-fk.svg','docs/panduan-live.html'].forEach(f=>W('public/'+f,R(f)));
 
 console.log('OK  index.html', (R('index.html').length / 1024).toFixed(0) + ' KB;  fragment', (R('dist/elogbook-fragment.html').length / 1024).toFixed(0) + ' KB;  Code.gs', R('server/Code.gs').split('\n').length + ' baris');

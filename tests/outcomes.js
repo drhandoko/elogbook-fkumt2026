@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict'),E=require('../src/outcomes');
+const c={version:1,name:'Test',revision:'1',source:'Synthetic',cpl:[{id:'A',label:'Example',threshold:70},{id:'B',label:'Later',threshold:70}],cpmk:[{id:'M',label:'M',cpl:'A',weight:1,semester:2},{id:'N',label:'N',cpl:'B',weight:1,semester:4}],evidence:[{id:'E',cpmk:'M',block:'B1',assessment:'CBT',weight:1,max:100,type:'assessment-component'},{id:'F',cpmk:'M',block:'B1',assessment:'OSCE',weight:3,max:100,type:'assessment-component'}]};
+const row=(komp,v,sid='s1')=>({sid,tahap:'PSSK',unit:'B1',komp,v});let n=0;const ok=(a,b)=>{assert.deepEqual(a,b);n++};
+ok(E.validate(c),[]);let r=E.calculate(c,[row('CBT',60),row('OSCE',80)],'s1',2);ok(r.cpl[0].score,75);ok(r.cpl[0].status,'threshold-met');ok(r.cpl[1].score,null);ok(r.cpl[1].status,'not-due');
+r=E.calculate(c,[row('CBT',60)],'s1',2);ok(r.cpl[0].score,60);ok(r.cpl[0].coverage,.25);ok(r.cpl[0].status,'insufficient');
+r=E.calculate(c,[row('CBT',0),row('OSCE',0)],'s1',2);ok(r.cpl[0].score,0);ok(r.cpl[0].status,'below-threshold');
+r=E.calculate(c,[row('CBT',100,'s2')],'s1',2);ok(r.cpl[0].score,null);
+r=E.calculate(c,[row('CBT',60),row('CBT',80)],'s1',2);ok(r.cpmk[0].evidence[0].status,'ambiguous');ok(r.cpl[0].score,null);
+for(const v of [null,'',NaN,-1,101,'80'])ok(E.calculate(c,[row('CBT',v)],'s1',2).cpmk[0].evidence[0].status,'invalid');
+ok(E.calculate(c,[{...row('CBT',100),tahap:'PSPD'}],'s1',2).cpl[0].score,null);
+ok(E.calculate(c,[row('Other',50)],'s1',2).unmapped.length,1);
+ok(E.calculate(c,[],'s1',4).cpl[1].status,'insufficient');
+for(const mutate of [x=>x.cpmk[0].weight=0,x=>x.cpmk[0].cpl='unknown',x=>x.evidence.push({...x.evidence[0]}),x=>x.cpl[0].threshold=101]){const x=JSON.parse(JSON.stringify(c));mutate(x);ok(E.validate(x).length>0,true);}
+ok(E.calculate(c,[],'',2).errors.length>0,true);
+console.log(n+' outcome engine checks passed');
+const sub=JSON.parse(JSON.stringify(c));sub.indicators=[{id:'I',cpl:'A'}];sub.evidence.forEach((e,i)=>Object.assign(e,{sub:'SUB'+i,label:'Direct evidence',indicator:'I'}));
+ok(E.validate(sub),[]);
+ok(E.calculate(sub,[row('CBT',99)],'s1',2).cpl[0].score,null);
+ok(E.calculate(sub,[{...row('CBT',80),sub:'SUB0'}],'s1',2).cpl[0].score,80);
+ok(E.calculate(sub,[{...row('CBT',80),sub:'SUB0'},{...row('CBT',50),sub:'SUB0'}],'s1',2).cpmk[0].evidence[0].status,'ambiguous');
+let dup=JSON.parse(JSON.stringify(sub));dup.cpmk.push({...dup.cpmk[0],id:'M2'});dup.evidence.push({...dup.evidence[0],id:'E2',cpmk:'M2'});ok(E.validate(dup).some(e=>e.includes('Duplicate direct')),true);
+let bad=JSON.parse(JSON.stringify(sub));bad.evidence[0].indicator='X';ok(E.validate(bad).length>0,true);bad=JSON.parse(JSON.stringify(sub));bad.status='approved';ok(E.validate(bad).length>0,true);
+console.log(n+' total engine checks passed');
